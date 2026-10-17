@@ -5,6 +5,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { app, BrowserWindow, ipcMain } = require('electron');
+const { describeGame } = require('../src/main/game-text');
 
 const outDir = path.resolve(process.argv[process.argv.length - 1] || 'snapshots');
 const RENDERER = path.join(__dirname, '..', 'src', 'renderer');
@@ -65,7 +66,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('control:get-state', () => controlState);
   ['overlay:set-ignore', 'overlay:open-control'].forEach((c) => ipcMain.on(c, () => {}));
 
-  const overlay = offscreen(1000, 340, 'preload-overlay.js');
+  const overlay = offscreen(1000, 420, 'preload-overlay.js');
   await overlay.loadFile(path.join(RENDERER, 'overlay.html'));
   await overlay.webContents.insertCSS('html, body { background: #8fb3c9 !important; }');
   await wait(300);
@@ -79,6 +80,32 @@ app.whenReady().then(async () => {
   await wait(1_200);
   await save(overlay, 'room-join.png');
 
+  // Mini-games, with text built the same way the app builds it.
+  const names = Object.fromEntries(members.map((m) => [m.code, m.name]));
+  const game = (msg) => {
+    const full = { players: ['BBQ234', ME, 'HR5522'], by: ME, ...msg };
+    overlay.webContents.send('game', { ...full, ...describeGame(full, (c) => names[c] || '누군가'), me: ME });
+  };
+  game({ id: 1, game: 'lottery', phase: 'result', picked: 'HR5522', bounce: ['BBQ234', ME, 'HR5522', 'BBQ234', ME, 'HR5522'] });
+  await wait(3_000);
+  await save(overlay, 'game-lottery.png');
+
+  game({ id: 2, game: 'rps', phase: 'pick', deadlineMs: 10_000 });
+  await wait(500);
+  await save(overlay, 'game-rps-pick.png');
+  game({ id: 2, game: 'rps', phase: 'result', choices: { BBQ234: 'rock', [ME]: 'paper', HR5522: 'rock' }, winners: [ME] });
+  await wait(500);
+  await save(overlay, 'game-rps-result.png');
+
+  game({ id: 3, game: 'reaction', phase: 'ready' });
+  game({ id: 3, game: 'reaction', phase: 'go' });
+  await wait(500);
+  await save(overlay, 'game-reaction-go.png');
+  game({ id: 3, game: 'reaction', phase: 'result', ranking: [{ code: 'HR5522', ms: 284 }, { code: ME, ms: 391 }], faults: ['BBQ234'] });
+  await wait(500);
+  await save(overlay, 'game-reaction-result.png');
+
+  roomState.chat = [...roomState.chat, { system: true, message: '☕ 오늘 커피는 하린!' }];
   await shootControl(roomState, 'control-room.png');
   await shootControl({ ...roomState, room: null, chat: [] }, 'control-lobby.png');
 

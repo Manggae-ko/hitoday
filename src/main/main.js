@@ -4,7 +4,10 @@ const { loadProfile, saveProfile, applyChanges, withRoom } = require('./profile'
 const { createTransport } = require('./transport');
 const { createOverlayWindow, createControlWindow } = require('./windows');
 const { createTray } = require('./tray');
-const { cleanText, normalizeCode, isCode, MAX_MESSAGE_LENGTH, ROOM_HISTORY } = require('../../shared/protocol');
+const {
+  cleanText, normalizeCode, isCode, MAX_MESSAGE_LENGTH, ROOM_HISTORY, GAMES, RPS_HANDS,
+} = require('../../shared/protocol');
+const { describeGame } = require('./game-text');
 
 // NOLLEOWA_PROFILE=b lets two copies run side by side on one machine (handy for filming).
 const profileName = process.env.NOLLEOWA_PROFILE;
@@ -19,16 +22,22 @@ const ERROR_TEXT = {
   'room-full': '방이 꽉 찼어요 (최대 12명).',
   'server-full': '서버가 바빠요. 잠시 후 다시 해 주세요.',
   'empty-message': '할 말을 써 주세요.',
+  'game-running': '이미 게임 중이에요. 끝나고 다시 해요.',
+  'need-two': '게임은 접속한 사람이 2명 이상일 때 할 수 있어요.',
 };
+// Late or duplicate moves are harmless; don't bother the user about them.
+const QUIET_ERRORS = new Set(['no-game', 'not-player', 'bad-move']);
+// The lottery result arrives instantly; the chat waits until the spotlight has landed.
+const LOTTERY_REVEAL_MS = 4_500;
 
-const state = { profile: null, connected: false, notice: '', room: null, chat: [] };
+const state = { profile: null, connected: false, notice: '', room: null, chat: [], game: null };
 let overlay = null;
 let control = null;
 let transport = null;
 
 function publicState() {
-  const { profile, connected, notice, room, chat } = state;
-  return { ...profile, connected, notice, room, chat, canEditServer: !app.isPackaged };
+  const { profile, connected, notice, room, chat, game } = state;
+  return { ...profile, connected, notice, room, chat, game, canEditServer: !app.isPackaged };
 }
 
 function pushState(changes = {}) {
@@ -67,9 +76,27 @@ function handleServerMessage(msg) {
     rememberRoom('');
     pushState({ room: null, chat: [] });
     showMembers();
-  } else if (msg.type === 'error') {
+  } else if (msg.type === 'game') {
+    handleGame(msg);
+  } else if (msg.type === 'error' && !QUIET_ERRORS.has(msg.reason)) {
     pushState({ notice: ERROR_TEXT[msg.reason] || `문제가 생겼어요 (${msg.reason})` });
   }
+}
+
+function nameOf(code) {
+  const member = state.room && state.room.members.find((m) => m.code === code);
+  return member ? member.name : '누군가';
+}
+
+function handleGame(msg) {
+  const text = describeGame(msg, nameOf);
+  toOverlay('game', { ...msg, ...text, me: state.profile.code });
+  const finished = msg.phase === 'result';
+  pushState({ game: finished ? null : { game: msg.game, phase: msg.phase } });
+  if (!finished || !text.outcome) return;
+  const log = () => pushState({ chat: [...state.chat, { system: true, message: text.outcome }].slice(-ROOM_HISTORY) });
+  if (msg.game === 'lottery') setTimeout(log, LOTTERY_REVEAL_MS);
+  else log();
 }
 
 function openControl() {
@@ -96,6 +123,14 @@ function registerIpc() {
     return sendOrFail({ type: 'join-room', room });
   });
   ipcMain.handle('control:leave-room', () => sendOrFail({ type: 'leave-room' }));
+  ipcMain.handle('control:start-game', (_e, game) => {
+    if (!GAMES.includes(game)) return { ok: false, error: '없는 게임이에요.' };
+    if (!state.room) return { ok: false, error: '먼저 방에 들어가 주세요.' };
+    return sendOrFail({ type: 'start-game', game });
+  });
+  ipcMain.on('overlay:game-move', (_e, move) => {
+    if (move === 'tap' || RPS_HANDS.includes(move)) transport.send({ type: 'game-move', move });
+  });
   ipcMain.handle('control:send', (_e, raw) => {
     const message = cleanText(raw, MAX_MESSAGE_LENGTH);
     if (!state.room) return { ok: false, error: '먼저 방에 들어가 주세요.' };

@@ -2,7 +2,7 @@
 
 const WebSocket = require('ws');
 const {
-  isCode, cleanText, MAX_NAME_LENGTH, MAX_MESSAGE_LENGTH, MAX_ROOM_MEMBERS, ROOM_HISTORY,
+  isCode, cleanText, MAX_NAME_LENGTH, MAX_MESSAGE_LENGTH, MAX_ROOM_MEMBERS, ROOM_HISTORY, GAMES, RPS_HANDS,
 } = require('../../shared/protocol');
 
 const MIN_RETRY_MS = 1_000;
@@ -29,6 +29,33 @@ function parseRoom(data) {
   return { type: 'room', room: data.room, members, history };
 }
 
+const PHASES = ['pick', 'ready', 'go', 'result'];
+const MAX_BOUNCE = 80;
+const codeList = (value, max = MAX_ROOM_MEMBERS) => (Array.isArray(value) ? value.slice(0, max).filter(isCode) : []);
+
+function parseGame(data) {
+  if (!Number.isInteger(data.id) || !GAMES.includes(data.game) || !PHASES.includes(data.phase)) return null;
+  if (!isCode(data.by)) return null;
+  const base = { type: 'game', id: data.id, game: data.game, phase: data.phase, by: data.by, players: codeList(data.players) };
+  const choices = Object.fromEntries(
+    Object.entries(data.choices && typeof data.choices === 'object' ? data.choices : {})
+      .filter(([code, hand]) => isCode(code) && RPS_HANDS.includes(hand)),
+  );
+  const ranking = (Array.isArray(data.ranking) ? data.ranking : [])
+    .filter((r) => r && isCode(r.code) && Number.isFinite(r.ms) && r.ms >= 0)
+    .map((r) => ({ code: r.code, ms: r.ms }));
+  return {
+    ...base,
+    deadlineMs: Number.isFinite(data.deadlineMs) ? data.deadlineMs : 0,
+    picked: isCode(data.picked) ? data.picked : null,
+    bounce: codeList(data.bounce, MAX_BOUNCE),
+    choices,
+    winners: codeList(data.winners),
+    ranking,
+    faults: codeList(data.faults),
+  };
+}
+
 // The server is external input too: only pass on messages we understand.
 function parseServerMessage(raw) {
   let data;
@@ -47,6 +74,8 @@ function parseServerMessage(raw) {
     }
     case 'left-room':
       return { type: 'left-room' };
+    case 'game':
+      return parseGame(data);
     case 'error':
       return { type: 'error', reason: String(data.reason || 'unknown') };
     case 'welcome':

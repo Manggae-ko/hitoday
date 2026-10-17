@@ -65,7 +65,11 @@ function createActor(member, isMe) {
   zzz.className = 'zzz';
   zzz.textContent = 'z z';
   character.root.append(zzz);
-  character.root.addEventListener('click', () => api.openControl());
+  character.root.addEventListener('click', () => {
+    // During the reaction race, clicking my own character is the game move.
+    if (isMe && games.takeClick()) return;
+    api.openControl();
+  });
   stage.append(character.root);
   return { character, chain: Promise.resolve(), bubbleTimer: null, index: -1 };
 }
@@ -110,22 +114,48 @@ function updateLineup({ me, members }) {
   hasLinedUp = true;
 }
 
-function memberSays({ from, message }) {
-  const actor = actors.get(from);
+/** Shows a bubble over someone; a newer line replaces the old one. */
+function say(code, text, ms = BUBBLE_MS) {
+  const actor = actors.get(code);
   if (!actor) return;
   perform(actor, () => {
     clearTimeout(actor.bubbleTimer);
-    actor.character.root.classList.remove('is-asleep');
-    actor.character.say(message);
+    actor.character.say(text);
     actor.character.pose('is-waving');
     actor.bubbleTimer = setTimeout(() => {
       actor.character.hush();
       actor.character.pose();
-    }, BUBBLE_MS);
+    }, ms);
   });
 }
 
-const DIRECTIONS = { 'room:members': updateLineup, 'member:says': memberSays };
+function memberSays({ from, message }) {
+  const actor = actors.get(from);
+  if (actor) actor.character.root.classList.remove('is-asleep');
+  say(from, message);
+}
+
+const games = window.GameStage.createGameStage({
+  root: stage,
+  actor: (code) => actors.get(code),
+  say,
+  hushAll: () => actors.forEach((actor) => {
+    clearTimeout(actor.bubbleTimer);
+    actor.character.hush();
+    actor.character.pose();
+  }),
+  mark: (code, cls, on) => {
+    const actor = actors.get(code);
+    if (actor) actor.character.root.classList.toggle(cls, on);
+  },
+  clearMarks: (cls) => actors.forEach((actor) => actor.character.root.classList.remove(cls)),
+}, api);
+
+const DIRECTIONS = {
+  'room:members': updateLineup,
+  'member:says': memberSays,
+  game: (msg) => games.handle(msg),
+};
 
 // --- click-through --------------------------------------------------------
 // The window ignores the mouse except while it hovers a character.

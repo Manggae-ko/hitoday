@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const { WebSocketServer } = require('ws');
 const { parseClientMessage, makeCode, MAX_ROOM_MEMBERS, ROOM_HISTORY } = require('../shared/protocol');
 const { createWebHandler } = require('./web');
+const { createGameHost } = require('./game-host');
 
 const MIN_SAY_INTERVAL_MS = 800; // fast enough to chat, slow enough to stop spam
 const MAX_PAYLOAD_BYTES = 2_048;
@@ -15,7 +16,14 @@ function send(ws, payload) {
   if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(payload));
 }
 
-function createRelay({ port = 8787, now = Date.now, log = () => {}, repo } = {}) {
+function createRelay({
+  port = 8787,
+  now = Date.now,
+  log = () => {},
+  repo,
+  randomInt = (n) => crypto.randomInt(n),
+  gameTimings,
+} = {}) {
   const online = new Map(); // user code -> ws
   const rooms = new Map(); // room code -> { members: Map(user code -> { name, joinedAt }), history: [] }
   const roomOf = new Map(); // user code -> room code
@@ -39,6 +47,9 @@ function createRelay({ port = 8787, now = Date.now, log = () => {}, repo } = {})
   }
 
   const broadcastState = (roomCode) => rooms.has(roomCode) && broadcast(roomCode, roomSnapshot(roomCode));
+  const games = createGameHost({ broadcast, now, randomInt, timings: gameTimings });
+
+  const onlineMembers = (roomCode) => roomSnapshot(roomCode).members.filter((m) => m.online).map((m) => m.code);
 
   function newRoomCode() {
     let code;
@@ -54,8 +65,9 @@ function createRelay({ port = 8787, now = Date.now, log = () => {}, repo } = {})
     const room = rooms.get(roomCode);
     if (!room) return;
     room.members.delete(user);
-    if (room.members.size === 0) rooms.delete(roomCode);
-    else broadcastState(roomCode);
+    if (room.members.size > 0) return broadcastState(roomCode);
+    games.stop(roomCode);
+    return rooms.delete(roomCode);
   }
 
   /** Puts a user in a room. Returns an error reason, or null on success. */
@@ -121,6 +133,16 @@ function createRelay({ port = 8787, now = Date.now, log = () => {}, repo } = {})
       send(ws, { type: 'left-room' });
     },
     say: handleSay,
+    'start-game': (ws, msg) => {
+      const roomCode = roomOf.get(ws.user.code);
+      const reason = roomCode ? games.start(roomCode, msg.game, ws.user.code, onlineMembers(roomCode)) : 'no-room';
+      if (reason) send(ws, { type: 'error', reason });
+    },
+    'game-move': (ws, msg) => {
+      const roomCode = roomOf.get(ws.user.code);
+      const reason = roomCode ? games.move(roomCode, ws.user.code, msg.move) : 'no-room';
+      if (reason) send(ws, { type: 'error', reason });
+    },
   };
 
   wss.on('connection', (ws) => {
@@ -147,6 +169,7 @@ function createRelay({ port = 8787, now = Date.now, log = () => {}, repo } = {})
     ready,
     port: () => httpServer.address().port,
     close: () => new Promise((resolve) => {
+      games.stopAll();
       wss.clients.forEach((c) => c.terminate());
       wss.close(() => httpServer.close(resolve));
     }),

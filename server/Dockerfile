@@ -4,7 +4,7 @@ FROM node:22-alpine
 WORKDIR /app
 RUN npm install --omit=dev --no-audit --no-fund ws@8
 COPY shared ./shared
-COPY server/relay.js server/web.js ./server/
+COPY server/*.js ./server/
 COPY web ./web
 ENV PORT=8787
 EXPOSE 8787

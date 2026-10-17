@@ -56,6 +56,33 @@ main { display: grid; gap: 16px; }
 .member.is-online { color: var(--ink); }
 .member.is-online::before { color: var(--ok); opacity: 1; }
 
+.games { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0 0 12px; }
+.game-btn {
+  padding: 7px 4px;
+  font-size: var(--text-sm);
+  font-weight: 800;
+  background: #fff4b8;
+  border-radius: 10px;
+  box-shadow: 2px 2px 0 var(--line);
+}
+.game-btn:nth-child(2) { rotate: 1deg; }
+.game-btn:hover:not(:disabled) { transform: translate(-1px, -2px) rotate(-1deg); box-shadow: 3px 4px 0 var(--line); }
+.game-btn:active:not(:disabled) { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--line); }
+@media (prefers-color-scheme: dark) { .game-btn { color: #2b2420; } }
+
+.chat-system {
+  justify-self: center;
+  max-width: 95%;
+  padding: 4px 12px;
+  font-size: var(--text-xs);
+  font-weight: 800;
+  text-align: center;
+  color: #2b2420;
+  background: #fff4b8;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+}
+
 .chat-log {
   display: grid;
   align-content: start;

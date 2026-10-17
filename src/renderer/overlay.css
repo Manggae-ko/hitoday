@@ -139,6 +139,101 @@ body {
 }
 .is-asleep .zzz { opacity: 0.7; animation: drift 2.4s ease-in-out infinite; }
 
+/* --- mini-games ---------------------------------------------------------- */
+
+/* Big sticker sign floating above the strip, right-aligned over my corner. */
+.game-banner {
+  position: absolute;
+  right: 40px;
+  bottom: 200px;
+  max-width: min(560px, calc(100% - 80px));
+  padding: 10px 18px;
+  font-size: 1.15rem;
+  font-weight: 900;
+  line-height: 1.35;
+  color: #2b2420;
+  background: #fff4b8;
+  border: 3px solid #2b2420;
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 #2b2420;
+  rotate: -1.5deg;
+  animation: pop-in 260ms var(--ease-out);
+}
+.game-banner.is-flash {
+  font-size: 2.4rem;
+  color: #fffaf0;
+  background: #ff5b3a;
+  animation: pop-in 160ms var(--ease-out), shake 300ms 160ms;
+}
+
+/* Lottery spotlight hopping between characters, then landing on the pick. */
+.is-spot .figure,
+.is-picked .figure { filter: drop-shadow(0 0 0 #2b2420) drop-shadow(0 -6px 14px rgb(255 230 120 / 0.95)); }
+.is-spot::before,
+.is-picked::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 120px;
+  height: 140px;
+  translate: -50% 0;
+  background: radial-gradient(ellipse at 50% 100%, rgb(255 236 150 / 0.75), transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+}
+.is-picked .figure { animation: hop 0.5s ease-in-out 3; }
+
+/* Winners bounce; my reaction-race target pulses so I know where to click. */
+.is-winner .figure { animation: hop 0.6s ease-in-out infinite; }
+.is-target::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 104px;
+  height: 104px;
+  translate: -50% 0;
+  border: 4px dashed #ff5b3a;
+  border-radius: 50%;
+  animation: pulse 0.9s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Rock-paper-scissors buttons over my head. */
+.hand-picker {
+  position: absolute;
+  bottom: calc(100% + 34px);
+  right: -6px;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  background: #fffaf0;
+  border: 2px solid #2b2420;
+  border-radius: 14px;
+  box-shadow: 3px 3px 0 #2b2420;
+  z-index: 3;
+}
+.hand-picker button {
+  width: 44px;
+  height: 44px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  background: #fff4b8;
+  border: 2px solid #2b2420;
+  border-radius: 10px;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.hand-picker button:hover { transform: translateY(-3px) rotate(-6deg); }
+.hand-picker button:active { transform: translateY(1px); }
+.hand-picker button:focus-visible { outline: 3px solid #ff5b3a; outline-offset: 2px; }
+
+@keyframes pop-in { from { opacity: 0; transform: translateY(8px) scale(0.92); } }
+@keyframes shake { 25% { translate: -4px 0; } 75% { translate: 4px 0; } }
+/* Uses `translate` (not transform) so it doesn't undo the left/right facing flip. */
+@keyframes hop { 0%, 100% { translate: 0 0; } 40% { translate: 0 -14px; } }
+@keyframes pulse { 0%, 100% { transform: scale(0.92); opacity: 0.6; } 50% { transform: scale(1.04); opacity: 1; } }
+
 @keyframes drift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
 @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }

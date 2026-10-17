@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('nolleowa', {
   createRoom: () => ipcRenderer.invoke('control:create-room'),
   joinRoom: (code) => ipcRenderer.invoke('control:join-room', String(code)),
   leaveRoom: () => ipcRenderer.invoke('control:leave-room'),
+  startGame: (game) => ipcRenderer.invoke('control:start-game', String(game)),
   copyRoom: () => ipcRenderer.invoke('control:copy-room'),
   send: (message) => ipcRenderer.invoke('control:send', String(message)),
   save: (changes) => ipcRenderer.invoke('control:save', changes),

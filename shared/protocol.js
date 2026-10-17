@@ -54,12 +54,27 @@ function parseSay(data) {
   return message ? pass({ type: 'say', message }) : fail('empty-message');
 }
 
+const GAMES = ['lottery', 'rps', 'reaction'];
+const RPS_HANDS = ['rock', 'paper', 'scissors'];
+
+function parseStartGame(data) {
+  return GAMES.includes(data.game) ? pass({ type: 'start-game', game: data.game }) : fail('bad-game');
+}
+
+/** A move in the running game: a hand for rock-paper-scissors, or a tap for the reaction race. */
+function parseGameMove(data) {
+  if (data.move === 'tap' || RPS_HANDS.includes(data.move)) return pass({ type: 'game-move', move: data.move });
+  return fail('bad-move');
+}
+
 const PARSERS = {
   hello: parseHello,
   'create-room': () => pass({ type: 'create-room' }),
   'join-room': parseJoin,
   'leave-room': () => pass({ type: 'leave-room' }),
   say: parseSay,
+  'start-game': parseStartGame,
+  'game-move': parseGameMove,
 };
 
 function parseClientMessage(raw) {
@@ -79,6 +94,8 @@ module.exports = {
   MAX_MESSAGE_LENGTH,
   MAX_ROOM_MEMBERS,
   ROOM_HISTORY,
+  GAMES,
+  RPS_HANDS,
   isCode,
   makeCode,
   cleanText,

@@ -191,6 +191,88 @@ test('rate-limits messages sent too quickly, and refuses talk outside a room', (
   }, { now: () => clock });
 });
 
+const FAST_GAMES = { rpsMs: 300, reactionMinDelayMs: 50, reactionMaxDelayMs: 50, reactionWindowMs: 300 };
+
+async function roomOfTwo(port, room) {
+  const a = await hello(port, 'AAAAAA', '에이', room);
+  await a.next('room');
+  const b = await hello(port, 'BBBBBB', '비', room);
+  await a.next('room', (r) => r.members.length === 2);
+  await b.next('room');
+  return [a, b];
+}
+
+test('coffee lottery: everyone sees the same pick and spotlight path', () =>
+  withRelay(async (port) => {
+    const [a, b] = await roomOfTwo(port, 'GAME01');
+    a.say({ type: 'start-game', game: 'lottery' });
+    const seenByA = await a.next('game');
+    const seenByB = await b.next('game');
+    assert.equal(seenByA.phase, 'result');
+    assert.deepEqual(seenByA.players, ['AAAAAA', 'BBBBBB']);
+    assert.equal(seenByA.picked, seenByB.picked);
+    assert.deepEqual(seenByA.bounce, seenByB.bounce);
+    assert.equal(seenByA.bounce.at(-1), seenByA.picked);
+    a.ws.close();
+    b.ws.close();
+  }, { gameTimings: FAST_GAMES }));
+
+test('rock-paper-scissors ends as soon as everyone picks', () =>
+  withRelay(async (port) => {
+    const [a, b] = await roomOfTwo(port, 'GAME02');
+    a.say({ type: 'start-game', game: 'rps' });
+    assert.equal((await b.next('game')).phase, 'pick');
+    a.say({ type: 'game-move', move: 'rock' });
+    b.say({ type: 'game-move', move: 'scissors' });
+    const result = await b.next('game', (g) => g.phase === 'result');
+    assert.deepEqual(result.choices, { AAAAAA: 'rock', BBBBBB: 'scissors' });
+    assert.deepEqual(result.winners, ['AAAAAA']);
+    a.ws.close();
+    b.ws.close();
+  }, { gameTimings: FAST_GAMES }));
+
+test('rock-paper-scissors times out with whoever picked', () =>
+  withRelay(async (port) => {
+    const [a, b] = await roomOfTwo(port, 'GAME03');
+    a.say({ type: 'start-game', game: 'rps' });
+    a.say({ type: 'game-move', move: 'paper' });
+    const result = await a.next('game', (g) => g.phase === 'result');
+    assert.deepEqual(result.choices, { AAAAAA: 'paper' });
+    assert.deepEqual(result.winners, []);
+    a.ws.close();
+    b.ws.close();
+  }, { gameTimings: FAST_GAMES }));
+
+test('reaction race: tapping before "go" is a false start, after it is ranked', () =>
+  withRelay(async (port) => {
+    const [a, b] = await roomOfTwo(port, 'GAME04');
+    a.say({ type: 'start-game', game: 'reaction' });
+    await a.next('game', (g) => g.phase === 'ready');
+    b.say({ type: 'game-move', move: 'tap' }); // too early
+    await a.next('game', (g) => g.phase === 'go');
+    a.say({ type: 'game-move', move: 'tap' });
+    const result = await a.next('game', (g) => g.phase === 'result');
+    assert.deepEqual(result.faults, ['BBBBBB']);
+    assert.deepEqual(result.ranking.map((r) => r.code), ['AAAAAA']);
+    a.ws.close();
+    b.ws.close();
+  }, { gameTimings: FAST_GAMES }));
+
+test('games need two people online and only one runs at a time', () =>
+  withRelay(async (port) => {
+    const solo = await hello(port, 'CCCCCC', '씨', 'SOLO22');
+    await solo.next('room');
+    solo.say({ type: 'start-game', game: 'lottery' });
+    assert.equal((await solo.next('error')).reason, 'need-two');
+
+    const [a, b] = await roomOfTwo(port, 'GAME05');
+    a.say({ type: 'start-game', game: 'rps' });
+    await a.next('game');
+    b.say({ type: 'start-game', game: 'reaction' });
+    assert.equal((await b.next('error')).reason, 'game-running');
+    [solo, a, b].forEach((x) => x.ws.close());
+  }, { gameTimings: FAST_GAMES }));
+
 test('answers health checks over plain HTTP', () =>
   withRelay(async (port) => {
     const res = await fetch(`http://127.0.0.1:${port}/health`);

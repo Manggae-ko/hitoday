@@ -4,6 +4,8 @@
 // A "room" works like a group chat: whoever has the invite code can join,
 // and everyone in the room sees everyone's character along the bottom of their screen.
 
+const { checkAvatar, decodeBase64 } = require('./avatar');
+
 const CODE_PATTERN = /^[A-Z0-9]{6}$/;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_NAME_LENGTH = 12;
@@ -67,8 +69,19 @@ function parseGameMove(data) {
   return fail('bad-move');
 }
 
+/** png: base64 PNG to use as my character, or null to go back to the built-in one. */
+function parseSetAvatar(data) {
+  if (data.png === null) return pass({ type: 'set-avatar', bytes: null });
+  const bytes = decodeBase64(data.png);
+  if (!bytes) return fail('not-png');
+  const checked = checkAvatar(bytes);
+  if (!checked.ok) return fail(checked.error);
+  return pass({ type: 'set-avatar', bytes, kind: checked.kind, version: checked.version });
+}
+
 const PARSERS = {
   hello: parseHello,
+  'set-avatar': parseSetAvatar,
   'create-room': () => pass({ type: 'create-room' }),
   'join-room': parseJoin,
   'leave-room': () => pass({ type: 'leave-room' }),

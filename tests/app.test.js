@@ -52,8 +52,43 @@ test('parseServerMessage drops malformed members and lines', () => {
     members: [{ code: 'AAAAAA', name: '동동', color: 3, online: true }, { code: 'bad', name: 'x' }],
     history: [{ from: 'AAAAAA', fromName: '동동', message: 'hi', at: 1 }, { from: 'AAAAAA' }],
   }));
-  assert.deepEqual(room.members, [{ code: 'AAAAAA', name: '동동', color: 3, online: true }]);
+  assert.deepEqual(room.members, [{ code: 'AAAAAA', name: '동동', color: 3, online: true, avatar: null, avatarKind: null }]);
   assert.equal(room.history.length, 1);
+});
+
+test('friend images are downloaded once, checked, and refused if they do not match', async () => {
+  const { createAvatarCache, httpBase } = require('../src/main/avatars');
+  const { encodePng } = require('../scripts/png');
+  const { checkAvatar } = require('../shared/avatar');
+  const image = encodePng(32, 32, () => [10, 20, 30, 255]);
+  const { version } = checkAvatar(image);
+  let calls = 0;
+  let loaded = 0;
+  const cache = createAvatarCache({
+    getServerUrl: () => 'wss://relay.example.com',
+    onLoaded: () => { loaded += 1; },
+    fetchImpl: async (url) => {
+      calls += 1;
+      assert.equal(url, `https://relay.example.com/avatars/AAAAAA.png?v=${version}`);
+      return { ok: true, arrayBuffer: async () => image };
+    },
+  });
+  assert.equal(cache.lookFor('AAAAAA', version), null); // starts downloading
+  assert.equal(cache.lookFor('AAAAAA', version), null); // no second download while pending
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(calls, 1);
+  assert.equal(loaded, 1);
+  assert.equal(cache.lookFor('AAAAAA', version).single, true);
+  assert.equal(cache.lookFor('BBBBBB', null), null);
+  assert.equal(httpBase('ws://localhost:8787'), 'http://localhost:8787');
+
+  const liar = createAvatarCache({
+    getServerUrl: () => 'ws://x',
+    onLoaded: () => assert.fail('should not load a mismatched image'),
+    fetchImpl: async () => ({ ok: true, arrayBuffer: async () => image }),
+  });
+  liar.lookFor('AAAAAA', 'ffffffffffff');
+  await new Promise((r) => setTimeout(r, 20));
 });
 
 test('three app transports share a room through the relay', async () => {

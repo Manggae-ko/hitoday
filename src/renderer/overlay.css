@@ -16,9 +16,6 @@ body {
 
 /* Characters always sit on paper-and-ink colors, regardless of the desktop theme. */
 .char {
-  --body: hsl(var(--hue) 70% 93%);
-  --body-shade: hsl(var(--hue) 45% 80%);
-  --outline: #2b2420;
   position: absolute;
   left: 0;
   bottom: 6px;
@@ -27,42 +24,39 @@ body {
   will-change: transform;
 }
 
+/* Pixel sprite: a 96×96 window onto a 384×384 sheet (4×4 cells at 3×).
+   --row picks the animation row; the sheet slides by whole cells with steps(). */
 .figure {
-  display: block;
+  --row: 0;
+  --frames: 2;
+  --speed: 1.1s;
+  position: relative;
   width: 96px;
   height: 96px;
-  overflow: visible;
-  transition: transform var(--duration-fast) var(--ease-out);
+  overflow: hidden;
 }
 .facing-left .figure { transform: scaleX(-1); }
-
-.body,
-.ear,
-.arm,
-.foot {
-  fill: var(--body);
-  stroke: var(--outline);
-  stroke-width: 2.4;
+.sheet {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 384px;
+  height: 384px;
+  image-rendering: pixelated;
+  translate: 0 calc(var(--row) * -96px);
+  animation: frames var(--speed) steps(var(--frames)) infinite;
 }
-.ear { fill: var(--body-shade); }
-.shadow { fill: rgb(0 0 0 / 0.16); }
-.eye { fill: var(--outline); transform-box: fill-box; transform-origin: center; animation: blink 4.2s infinite; }
-.cheek { fill: #ff9f9f; opacity: 0.7; }
-.mouth { fill: none; stroke: var(--outline); stroke-width: 2; stroke-linecap: round; }
-.note rect { fill: #fff4b8; stroke: var(--outline); stroke-width: 2; }
-.note path { stroke: var(--outline); stroke-width: 1.6; stroke-linecap: round; }
-.note { display: none; }
-.has-note .note { display: inline; }
+.is-walking .figure { --row: 1; --frames: 4; --speed: 0.5s; }
+.is-waving .figure { --row: 2; --frames: 2; --speed: 0.5s; }
+.is-asleep .figure { --row: 3; --frames: 2; --speed: 1.8s; }
 
-.torso { transform-box: view-box; transform-origin: 50% 90%; animation: breathe 3s ease-in-out infinite; }
-.arm-r-group { transform-box: fill-box; transform-origin: 20% 80%; }
-.foot { transform-box: fill-box; transform-origin: center; }
+/* A single 32×32 image: scale it up and give it a little bounce instead of frames. */
+.figure.is-single .sheet { width: 96px; height: 96px; translate: none; animation: none; }
+.is-walking .figure.is-single .sheet { animation: bob 0.42s ease-in-out infinite; }
+.is-waving .figure.is-single .sheet { animation: bob 0.6s ease-in-out infinite; }
 
-.is-walking .torso { animation: bob 0.42s ease-in-out infinite; }
-.is-walking .foot-l { animation: step 0.42s ease-in-out infinite; }
-.is-walking .foot-r { animation: step 0.42s ease-in-out infinite reverse; }
-.is-waving:not(.has-note) .arm-r-group { animation: wave 0.6s ease-in-out infinite; }
-.is-waving.has-note .arm-r-group { animation: offer 1.4s ease-in-out infinite; }
+@keyframes frames { to { transform: translateX(calc(var(--frames) * -96px)); } }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
 .tag {
   position: absolute;
@@ -122,9 +116,7 @@ body {
 .is-me .bubble::after { left: 70%; }
 
 /* App closed: the character dozes. */
-.is-asleep .figure { opacity: 0.55; filter: saturate(0.4); }
-.is-asleep .eye { animation: none; transform: scaleY(0.15); }
-.is-asleep .torso { animation-duration: 5s; }
+.is-asleep .figure { opacity: 0.7; filter: saturate(0.5); }
 .is-asleep .tag { opacity: 0.6; }
 .zzz {
   position: absolute;
@@ -236,13 +228,7 @@ body {
 
 @keyframes drift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
 
-@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
-@keyframes breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, 0.98); } }
-@keyframes bob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-5px) rotate(2deg); } }
-@keyframes step { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-@keyframes wave { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-28deg); } }
-@keyframes offer { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .torso, .foot, .arm-r-group, .eye, .zzz { animation: none !important; }
+  .sheet, .zzz { animation: none !important; }
 }

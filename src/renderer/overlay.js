@@ -2,7 +2,7 @@
 // I'm at the far right; others line up to my left in the order they joined.
 // Whoever talks gets a bubble; people whose app is off doze (dimmed, zzz).
 
-const { createCharacter, hueFor } = window.Character;
+const { createCharacter, colorFor } = window.Character;
 const api = window.nolleowa;
 
 const CHAR_WIDTH = 96;
@@ -59,7 +59,11 @@ function perform(actor, move) {
 }
 
 function createActor(member, isMe) {
-  const character = createCharacter({ name: member.name, hue: hueFor(member.code, member.color) });
+  const character = createCharacter({
+    name: member.name,
+    color: colorFor(member.code, member.color),
+    avatar: member.avatar,
+  });
   if (isMe) character.root.classList.add('is-me');
   const zzz = document.createElement('span');
   zzz.className = 'zzz';
@@ -99,7 +103,7 @@ function updateLineup({ me, members }) {
     actors.set(member.code, actor);
     actor.index = index;
     actor.character.setLabel(member.name);
-    actor.character.root.style.setProperty('--hue', String(hueFor(member.code, member.color)));
+    actor.character.setLook(colorFor(member.code, member.color), member.avatar);
     actor.character.root.classList.toggle('is-asleep', !member.online);
     const target = slotX(index, count);
     if (isNew) {

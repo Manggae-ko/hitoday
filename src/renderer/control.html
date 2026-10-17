@@ -2,7 +2,7 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:" />
     <title>놀러와</title>
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="control.css" />
@@ -58,6 +58,17 @@
 
       <form id="settings-form" class="settings" aria-labelledby="settings-heading">
         <h2 id="settings-heading" class="eyebrow">내 캐릭터</h2>
+        <div class="look-row">
+          <div class="preview" id="preview"><img id="preview-img" alt="내 캐릭터 미리보기" /></div>
+          <div class="look-actions">
+            <label class="chip-btn file-btn">
+              이미지 올리기
+              <input type="file" id="avatar-file" accept="image/png" />
+            </label>
+            <button type="button" class="link" id="avatar-reset" hidden>기본 캐릭터로</button>
+            <p class="hint">PNG · 32×32 한 장 또는 128×128 시트 · 32KB 이하</p>
+          </div>
+        </div>
         <div class="send-row">
           <label class="sr-only" for="name">내 이름</label>
           <input id="name" maxlength="12" autocomplete="off" />

@@ -8,6 +8,11 @@ const {
   cleanText, normalizeCode, isCode, MAX_MESSAGE_LENGTH, ROOM_HISTORY, GAMES, RPS_HANDS,
 } = require('../../shared/protocol');
 const { describeGame } = require('./game-text');
+const { checkAvatar } = require('../../shared/avatar');
+const { colorFor } = require('../../shared/colors');
+const {
+  loadOwnAvatar, saveOwnAvatar, clearOwnAvatar, createAvatarCache, toLook,
+} = require('./avatars');
 
 // NOLLEOWA_PROFILE=b lets two copies run side by side on one machine (handy for filming).
 const profileName = process.env.NOLLEOWA_PROFILE;
@@ -24,20 +29,47 @@ const ERROR_TEXT = {
   'empty-message': '할 말을 써 주세요.',
   'game-running': '이미 게임 중이에요. 끝나고 다시 해요.',
   'need-two': '게임은 접속한 사람이 2명 이상일 때 할 수 있어요.',
+  'not-png': 'PNG 파일만 올릴 수 있어요.',
+  'bad-size': '32×32 한 장이나 128×128 시트만 올릴 수 있어요.',
+  'too-big': '32KB 이하 이미지로 올려 주세요.',
 };
 // Late or duplicate moves are harmless; don't bother the user about them.
 const QUIET_ERRORS = new Set(['no-game', 'not-player', 'bad-move']);
 // The lottery result arrives instantly; the chat waits until the spotlight has landed.
 const LOTTERY_REVEAL_MS = 4_500;
 
-const state = { profile: null, connected: false, notice: '', room: null, chat: [], game: null };
+const state = { profile: null, connected: false, notice: '', room: null, chat: [], game: null, ownAvatar: null };
 let overlay = null;
 let control = null;
 let transport = null;
+let avatarCache = null;
+
+function myColor() {
+  const me = state.room && state.room.members.find((m) => m.code === state.profile.code);
+  return colorFor(state.profile.code, me ? me.color : null);
+}
+
+/** How a member looks: their uploaded image (mine straight from disk), else the built-in mochi. */
+function lookOf(member) {
+  if (member.code === state.profile.code) {
+    return state.ownAvatar ? toLook(state.ownAvatar.bytes, state.ownAvatar.kind) : null;
+  }
+  return avatarCache.lookFor(member.code, member.avatar);
+}
 
 function publicState() {
   const { profile, connected, notice, room, chat, game } = state;
-  return { ...profile, connected, notice, room, chat, game, canEditServer: !app.isPackaged };
+  return {
+    ...profile,
+    connected,
+    notice,
+    room,
+    chat,
+    game,
+    look: lookOf({ code: profile.code }),
+    color: myColor(),
+    canEditServer: !app.isPackaged,
+  };
 }
 
 function pushState(changes = {}) {
@@ -61,7 +93,13 @@ const toChatLine = (line) => ({ mine: line.from === state.profile.code, name: li
 function showMembers() {
   const { code, name } = state.profile;
   const members = state.room ? state.room.members : [{ code, name, online: true }];
-  toOverlay('room:members', { me: code, members });
+  const dressed = members.map((m) => ({ ...m, color: colorFor(m.code, m.color), avatar: lookOf(m) }));
+  toOverlay('room:members', { me: code, members: dressed });
+}
+
+function sendOwnAvatar() {
+  const own = state.ownAvatar;
+  return transport.send({ type: 'set-avatar', png: own ? own.bytes.toString('base64') : null });
 }
 
 function handleServerMessage(msg) {
@@ -123,6 +161,25 @@ function registerIpc() {
     return sendOrFail({ type: 'join-room', room });
   });
   ipcMain.handle('control:leave-room', () => sendOrFail({ type: 'leave-room' }));
+  ipcMain.handle('control:set-avatar', (_e, data) => {
+    const bytes = data instanceof Uint8Array ? Buffer.from(data) : null;
+    const checked = bytes ? checkAvatar(bytes) : { ok: false, error: 'not-png' };
+    if (!checked.ok) return { ok: false, error: ERROR_TEXT[checked.error] };
+    saveOwnAvatar(app.getPath('userData'), bytes);
+    state.ownAvatar = { bytes, ...checked };
+    sendOwnAvatar();
+    showMembers();
+    pushState({ notice: '캐릭터를 바꿨어요.' });
+    return { ok: true };
+  });
+  ipcMain.handle('control:clear-avatar', () => {
+    clearOwnAvatar(app.getPath('userData'));
+    state.ownAvatar = null;
+    sendOwnAvatar();
+    showMembers();
+    pushState({ notice: '기본 캐릭터로 돌아왔어요.' });
+    return { ok: true };
+  });
   ipcMain.handle('control:start-game', (_e, game) => {
     if (!GAMES.includes(game)) return { ok: false, error: '없는 게임이에요.' };
     if (!state.room) return { ok: false, error: '먼저 방에 들어가 주세요.' };
@@ -161,13 +218,19 @@ app.whenReady().then(() => {
   // Installed copies start with the computer, so friends always see you around.
   if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true });
   state.profile = loadProfile(app.getPath('userData'));
+  state.ownAvatar = loadOwnAvatar(app.getPath('userData'));
+  avatarCache = createAvatarCache({ getServerUrl: () => state.profile.serverUrl, onLoaded: showMembers });
   registerIpc();
   overlay = createOverlayWindow();
   createTray({ onOpen: openControl, onQuit: () => app.quit() });
   transport = createTransport({
     getHello: helloPayload,
     onMessage: handleServerMessage,
-    onStatus: ({ connected }) => pushState({ connected }),
+    onStatus: ({ connected }) => {
+      pushState({ connected });
+      // The server keeps images in memory only, so re-send mine on every (re)connect.
+      if (connected && state.ownAvatar) sendOwnAvatar();
+    },
   });
   transport.connect(state.profile.serverUrl);
   if (!state.profile.room) openControl();

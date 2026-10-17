@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { describeGame } = require('../src/main/game-text');
+const { encodePng } = require('./png');
 
 const outDir = path.resolve(process.argv[process.argv.length - 1] || 'snapshots');
 const RENDERER = path.join(__dirname, '..', 'src', 'renderer');
@@ -13,11 +14,24 @@ const PRELOAD = path.join(__dirname, '..', 'src');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const ME = 'K7QX2M';
+
+// A tiny 32×32 "uploaded" character: a pixel cat face, to show custom images.
+const customCat = encodePng(32, 32, (x, y) => {
+  const inHead = (x - 15.5) ** 2 / 144 + (y - 19) ** 2 / 100 <= 1;
+  const inEar = (y >= 5 && y <= 11) && (Math.abs(x - 7) <= (y - 5) / 1.5 || Math.abs(x - 24) <= (y - 5) / 1.5);
+  const eye = (y === 18 || y === 19) && (x === 11 || x === 20);
+  const nose = y === 22 && (x === 15 || x === 16);
+  if (eye || nose) return [43, 36, 32, 255];
+  if (inHead || inEar) return [250, 176, 90, 255];
+  return [0, 0, 0, 0];
+});
+const catLook = { url: `data:image/png;base64,${customCat.toString('base64')}`, single: true };
+
 const members = [
   { code: 'BBQ234', name: '민지', color: 0, online: true },
   { code: 'ZZT789', name: '준호', color: 1, online: false },
   { code: ME, name: '동동', color: 2, online: true },
-  { code: 'HR5522', name: '하린', color: 3, online: true },
+  { code: 'HR5522', name: '하린', color: 3, online: true, avatar: catLook },
 ];
 const roomState = {
   code: ME,
@@ -25,6 +39,8 @@ const roomState = {
   room: { code: 'PARTY7', members },
   serverUrl: 'ws://localhost:8787',
   canEditServer: true,
+  look: null,
+  color: 2,
   connected: true,
   notice: '',
   chat: [

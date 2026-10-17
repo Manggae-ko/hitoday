@@ -19,7 +19,7 @@ function downloadUrl(repo, platform) {
   return `https://github.com/${repo}/releases/latest/download/${ASSETS[platform]}`;
 }
 
-function createWebHandler({ repo = process.env.GITHUB_REPO } = {}) {
+function createWebHandler({ repo = process.env.GITHUB_REPO, avatars = new Map() } = {}) {
   const page = fs.readFileSync(PAGE_PATH);
 
   return function handle(req, res) {
@@ -37,6 +37,17 @@ function createWebHandler({ repo = process.env.GITHUB_REPO } = {}) {
         'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:",
         'cache-control': 'public, max-age=300',
       }, page);
+    }
+    const avatarMatch = pathname.match(/^\/avatars\/([A-Z0-9]{6})\.png$/);
+    if (avatarMatch) {
+      const avatar = avatars.get(avatarMatch[1]);
+      if (!avatar) return reply(404, { 'content-type': 'text/plain' }, 'not found');
+      return reply(200, {
+        'content-type': 'image/png',
+        'content-security-policy': "default-src 'none'",
+        'cache-control': 'public, max-age=86400',
+        etag: `"${avatar.version}"`,
+      }, avatar.bytes);
     }
     const match = pathname.match(/^\/download\/(mac|win)$/);
     if (match) {

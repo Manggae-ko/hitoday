@@ -9,8 +9,10 @@ const { createWebHandler } = require('./web');
 const { createGameHost } = require('./game-host');
 
 const MIN_SAY_INTERVAL_MS = 800; // fast enough to chat, slow enough to stop spam
-const MAX_PAYLOAD_BYTES = 2_048;
+const MAX_PAYLOAD_BYTES = 64 * 1024; // room for one base64 character image
 const MAX_ROOMS = 10_000;
+const MAX_AVATARS = 5_000; // 32KB each at most → ~160MB worst case
+const MIN_AVATAR_INTERVAL_MS = 2_000;
 
 function send(ws, payload) {
   if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(payload));
@@ -28,15 +30,27 @@ function createRelay({
   const rooms = new Map(); // room code -> { members: Map(user code -> { name, joinedAt }), history: [] }
   const roomOf = new Map(); // user code -> room code
   const lastSayAt = new Map(); // user code -> timestamp
+  const avatars = new Map(); // user code -> { bytes, kind, version } (apps re-send theirs on connect)
+  const lastAvatarAt = new Map(); // user code -> timestamp
 
-  const httpServer = http.createServer(createWebHandler({ repo }));
+  const httpServer = http.createServer(createWebHandler({ repo, avatars }));
   const wss = new WebSocketServer({ server: httpServer, maxPayload: MAX_PAYLOAD_BYTES });
 
   function roomSnapshot(roomCode) {
     const room = rooms.get(roomCode);
     const members = [...room.members.entries()]
       .sort((a, b) => a[1].joinedAt - b[1].joinedAt)
-      .map(([code, m]) => ({ code, name: m.name, color: m.color, online: online.has(code) }));
+      .map(([code, m]) => {
+        const avatar = avatars.get(code);
+        return {
+          code,
+          name: m.name,
+          color: m.color,
+          online: online.has(code),
+          avatar: avatar ? avatar.version : null,
+          avatarKind: avatar ? avatar.kind : null,
+        };
+      });
     return { type: 'room', room: roomCode, members, history: room.history };
   }
 
@@ -133,6 +147,17 @@ function createRelay({
       send(ws, { type: 'left-room' });
     },
     say: handleSay,
+    'set-avatar': (ws, msg) => {
+      const { code } = ws.user;
+      if (now() - (lastAvatarAt.get(code) || 0) < MIN_AVATAR_INTERVAL_MS) return send(ws, { type: 'error', reason: 'too-fast' });
+      if (msg.bytes && !avatars.has(code) && avatars.size >= MAX_AVATARS) return send(ws, { type: 'error', reason: 'server-full' });
+      lastAvatarAt.set(code, now());
+      if (msg.bytes) avatars.set(code, { bytes: msg.bytes, kind: msg.kind, version: msg.version });
+      else avatars.delete(code);
+      const roomCode = roomOf.get(code);
+      if (roomCode) return broadcastState(roomCode);
+      return send(ws, { type: 'avatar-saved' });
+    },
     'start-game': (ws, msg) => {
       const roomCode = roomOf.get(ws.user.code);
       const reason = roomCode ? games.start(roomCode, msg.game, ws.user.code, onlineMembers(roomCode)) : 'no-room';

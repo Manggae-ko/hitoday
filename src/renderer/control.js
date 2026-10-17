@@ -23,7 +23,21 @@ const el = {
   server: $('server'),
   notice: $('notice'),
   gameButtons: [...document.querySelectorAll('.game-btn')],
+  preview: $('preview'),
+  previewImg: $('preview-img'),
+  avatarFile: $('avatar-file'),
+  avatarReset: $('avatar-reset'),
 };
+
+const MAX_AVATAR_BYTES = 32 * 1024;
+
+/** Shows the first frame of my character (uploaded image or built-in mochi). */
+function renderLook(look, color) {
+  const src = look ? look.url : `sprites/mochi-${color}.png`;
+  if (el.previewImg.getAttribute('src') !== src) el.previewImg.src = src;
+  el.preview.classList.toggle('is-single', Boolean(look && look.single));
+  el.avatarReset.hidden = !look;
+}
 
 let formFilled = false;
 let shownChat = '';
@@ -85,6 +99,7 @@ function render(state) {
       button.title = onlineCount < 2 ? '접속한 사람이 2명 이상이어야 해요' : '';
     });
   }
+  renderLook(state.look, state.color);
   if (!formFilled) {
     el.name.value = state.name;
     el.server.value = state.serverUrl;
@@ -133,6 +148,19 @@ el.sendForm.addEventListener('submit', async (event) => {
 });
 
 el.leave.addEventListener('click', () => run(api.leaveRoom));
+
+el.avatarFile.addEventListener('change', async () => {
+  const file = el.avatarFile.files[0];
+  el.avatarFile.value = '';
+  if (!file) return;
+  if (file.size > MAX_AVATAR_BYTES) {
+    showNotice('32KB 이하 이미지로 올려 주세요.', 'warn');
+    return;
+  }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  run(() => api.setAvatar(bytes)); // the main process checks size and format again
+});
+el.avatarReset.addEventListener('click', () => run(api.clearAvatar));
 
 el.gameButtons.forEach((button) => {
   button.addEventListener('click', () => run(() => api.startGame(button.dataset.game)));

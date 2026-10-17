@@ -1,62 +1,49 @@
-// "말랑이": an original round mochi character drawn in SVG.
-// The SVG is static markup; names and notes always go in via textContent.
-// Wrapped in its own scope so these names don't clash with overlay.js globals.
+// Pixel characters drawn from sprite sheets (see docs/CHARACTER_GUIDE.md).
+// A sheet is 128×128: 4×4 cells of 32×32, shown at 3× (96×96) with crisp pixels.
+//   row 0 idle (2) · row 1 walk (4) · row 2 talk (2) · row 3 sleep (2)
+// A single 32×32 image also works; it just doesn't animate frame-by-frame.
+// Names and messages always go in via textContent.
 
 (() => {
-const CHARACTER_SVG = `
-<svg class="figure" viewBox="0 0 100 100" aria-hidden="true">
-  <ellipse class="shadow" cx="50" cy="94" rx="30" ry="4"/>
-  <ellipse class="foot foot-l" cx="38" cy="89" rx="9" ry="5"/>
-  <ellipse class="foot foot-r" cx="62" cy="89" rx="9" ry="5"/>
-  <g class="torso">
-    <ellipse class="ear" cx="33" cy="27" rx="7" ry="9"/>
-    <ellipse class="ear" cx="67" cy="27" rx="7" ry="9"/>
-    <path class="body" d="M50 22 C75 22 88 42 88 62 C88 80 72 89 50 89 C28 89 12 80 12 62 C12 42 25 22 50 22 Z"/>
-    <g class="eyes">
-      <ellipse class="eye" cx="38" cy="56" rx="3.2" ry="4.2"/>
-      <ellipse class="eye" cx="62" cy="56" rx="3.2" ry="4.2"/>
-    </g>
-    <ellipse class="cheek" cx="29" cy="66" rx="6" ry="3.5"/>
-    <ellipse class="cheek" cx="71" cy="66" rx="6" ry="3.5"/>
-    <path class="mouth" d="M46 63 Q50 67 54 63"/>
-    <ellipse class="arm arm-l" cx="15" cy="68" rx="6" ry="8"/>
-    <g class="arm-r-group">
-      <ellipse class="arm arm-r" cx="85" cy="68" rx="6" ry="8"/>
-      <g class="note">
-        <rect x="80" y="46" width="19" height="15" rx="2"/>
-        <path d="M84 52 h11 M84 56 h7"/>
-      </g>
-    </g>
-  </g>
-</svg>`;
+// The main process picks each member's color (shared/colors.js); this just guards the range.
+const ROOM_COLORS = 12;
+const colorFor = (_code, color) => (Number.isInteger(color) ? Math.abs(color) % ROOM_COLORS : 0);
 
-// Twelve clearly different hues, one per room seat (the server hands out seats).
-const ROOM_HUES = [150, 330, 220, 35, 275, 95, 0, 190, 305, 60, 245, 15];
+const defaultSheet = (color) => `sprites/mochi-${color}.png`;
 
-/** A member's hue: their room color, or a stable hue from their code when alone. */
-function hueFor(code, color) {
-  if (Number.isInteger(color)) return ROOM_HUES[color % ROOM_HUES.length];
-  return Array.from(code || '').reduce((sum, ch) => (sum * 31 + ch.charCodeAt(0)) % 360, 17);
-}
-
-function createCharacter({ name, hue, label }) {
+function createCharacter({ name, color, avatar }) {
   const root = document.createElement('div');
   root.className = 'char interactive';
-  root.style.setProperty('--hue', String(hue));
-  root.innerHTML = CHARACTER_SVG;
+
+  const figure = document.createElement('div');
+  figure.className = 'figure';
+  const sheet = document.createElement('img');
+  sheet.className = 'sheet';
+  sheet.alt = '';
+  sheet.draggable = false;
+  figure.append(sheet);
 
   const tag = document.createElement('div');
   tag.className = 'tag';
-  tag.textContent = label || name;
-  root.prepend(tag);
+  tag.textContent = name;
 
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
   bubble.setAttribute('role', 'status');
-  root.prepend(bubble);
+
+  root.append(bubble, tag, figure);
+
+  /** avatar: { url, single } for an uploaded image, or null for the built-in mochi. */
+  function setLook(nextColor, nextAvatar) {
+    const src = nextAvatar ? nextAvatar.url : defaultSheet(nextColor);
+    if (sheet.getAttribute('src') !== src) sheet.src = src;
+    figure.classList.toggle('is-single', Boolean(nextAvatar && nextAvatar.single));
+  }
+  setLook(color, avatar);
 
   return {
     root,
+    setLook,
     setLabel: (text) => {
       tag.textContent = text;
     },
@@ -66,12 +53,12 @@ function createCharacter({ name, hue, label }) {
     },
     hush: () => root.classList.remove('is-talking'),
     pose: (...poses) => {
-      root.classList.remove('is-walking', 'is-waving', 'has-note');
+      root.classList.remove('is-walking', 'is-waving');
       poses.forEach((p) => root.classList.add(p));
     },
     face: (direction) => root.classList.toggle('facing-left', direction === 'left'),
   };
 }
 
-window.Character = { createCharacter, hueFor };
+window.Character = { createCharacter, colorFor };
 })();

@@ -1,10 +1,33 @@
 // Keeps one WebSocket open to the relay and reconnects with backoff.
 
 const WebSocket = require('ws');
-const { isCode, cleanText, MAX_NAME_LENGTH, MAX_MESSAGE_LENGTH } = require('../../shared/protocol');
+const {
+  isCode, cleanText, MAX_NAME_LENGTH, MAX_MESSAGE_LENGTH, MAX_ROOM_MEMBERS, ROOM_HISTORY,
+} = require('../../shared/protocol');
 
 const MIN_RETRY_MS = 1_000;
 const MAX_RETRY_MS = 30_000;
+
+function parseLine(data) {
+  const fromName = cleanText(data && data.fromName, MAX_NAME_LENGTH);
+  const message = cleanText(data && data.message, MAX_MESSAGE_LENGTH);
+  if (!isCode(data && data.from) || !fromName || !message) return null;
+  return { from: data.from, fromName, message, at: Number(data.at) || 0 };
+}
+
+function parseMember(data) {
+  const name = cleanText(data && data.name, MAX_NAME_LENGTH);
+  if (!isCode(data && data.code) || !name) return null;
+  const color = Number.isInteger(data.color) && data.color >= 0 && data.color < MAX_ROOM_MEMBERS ? data.color : null;
+  return { code: data.code, name, color, online: data.online === true };
+}
+
+function parseRoom(data) {
+  if (!isCode(data.room) || !Array.isArray(data.members)) return null;
+  const members = data.members.slice(0, MAX_ROOM_MEMBERS).map(parseMember).filter(Boolean);
+  const history = (Array.isArray(data.history) ? data.history : []).slice(-ROOM_HISTORY).map(parseLine).filter(Boolean);
+  return { type: 'room', room: data.room, members, history };
+}
 
 // The server is external input too: only pass on messages we understand.
 function parseServerMessage(raw) {
@@ -16,17 +39,14 @@ function parseServerMessage(raw) {
   }
   if (!data || typeof data !== 'object') return null;
   switch (data.type) {
-    case 'visit': {
-      const fromName = cleanText(data.fromName, MAX_NAME_LENGTH);
-      const message = cleanText(data.message, MAX_MESSAGE_LENGTH);
-      if (!isCode(data.from) || !fromName || !message) return null;
-      return { type: 'visit', from: data.from, fromName, message, opens: data.opens === true, late: data.late === true };
+    case 'room':
+      return parseRoom(data);
+    case 'said': {
+      const line = parseLine(data);
+      return line ? { type: 'said', ...line } : null;
     }
-    case 'visit-sent': {
-      const message = cleanText(data.message, MAX_MESSAGE_LENGTH);
-      if (!message) return null;
-      return { type: 'visit-sent', message, opens: data.opens === true, queued: data.queued === true };
-    }
+    case 'left-room':
+      return { type: 'left-room' };
     case 'error':
       return { type: 'error', reason: String(data.reason || 'unknown') };
     case 'welcome':

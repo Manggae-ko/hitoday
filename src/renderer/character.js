@@ -30,8 +30,12 @@ const CHARACTER_SVG = `
   </g>
 </svg>`;
 
-/** Stable hue per person's code: the same character looks the same on every screen. */
-function hueFor(code) {
+// Twelve clearly different hues, one per room seat (the server hands out seats).
+const ROOM_HUES = [150, 330, 220, 35, 275, 95, 0, 190, 305, 60, 245, 15];
+
+/** A member's hue: their room color, or a stable hue from their code when alone. */
+function hueFor(code, color) {
+  if (Number.isInteger(color)) return ROOM_HUES[color % ROOM_HUES.length];
   return Array.from(code || '').reduce((sum, ch) => (sum * 31 + ch.charCodeAt(0)) % 360, 17);
 }
 

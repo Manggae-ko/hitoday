@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseClientMessage, makeCode, isCode, cleanText } = require('../shared/protocol');
+const { parseClientMessage, makeCode, isCode, cleanText, normalizeCode } = require('../shared/protocol');
 
 const parse = (obj) => parseClientMessage(JSON.stringify(obj));
 
@@ -9,22 +9,26 @@ test('makeCode produces a valid 6-char code', () => {
   assert.ok(isCode(code));
 });
 
-test('hello keeps only valid friend codes', () => {
-  const result = parse({ type: 'hello', code: 'ABC234', name: '동동', friends: ['XYZ789', 'nope', 3] });
-  assert.deepEqual(result, { ok: true, value: { type: 'hello', code: 'ABC234', name: '동동', friends: ['XYZ789'] } });
+test('hello keeps a remembered room only if it is a valid code', () => {
+  assert.deepEqual(parse({ type: 'hello', code: 'ABC234', name: '동동', room: 'ROOM22' }).value,
+    { type: 'hello', code: 'ABC234', name: '동동', room: 'ROOM22' });
+  assert.equal(parse({ type: 'hello', code: 'ABC234', name: '동동', room: 'nope' }).value.room, null);
 });
 
-test('hello rejects a bad code', () => {
+test('hello rejects a bad code or empty name', () => {
   assert.deepEqual(parse({ type: 'hello', code: 'abc', name: 'x' }), { ok: false, error: 'bad-code' });
+  assert.deepEqual(parse({ type: 'hello', code: 'ABC234', name: '   ' }), { ok: false, error: 'bad-name' });
 });
 
-test('visit trims long messages to 80 characters', () => {
-  const result = parse({ type: 'visit', to: 'ABC234', message: '가'.repeat(200) });
-  assert.equal(Array.from(result.value.message).length, 80);
+test('join-room forgives lowercase and spaces in typed invite codes', () => {
+  assert.deepEqual(parse({ type: 'join-room', room: ' ab c234 ' }).value, { type: 'join-room', room: 'ABC234' });
+  assert.deepEqual(parse({ type: 'join-room', room: '12' }), { ok: false, error: 'bad-room' });
+  assert.equal(normalizeCode(42), '');
 });
 
-test('visit rejects empty or whitespace-only messages', () => {
-  assert.deepEqual(parse({ type: 'visit', to: 'ABC234', message: '   ' }), { ok: false, error: 'empty-message' });
+test('say trims long messages to 80 characters and rejects blank ones', () => {
+  assert.equal(Array.from(parse({ type: 'say', message: '가'.repeat(200) }).value.message).length, 80);
+  assert.deepEqual(parse({ type: 'say', message: '   ' }), { ok: false, error: 'empty-message' });
 });
 
 test('cleanText removes control characters', () => {

@@ -1,11 +1,15 @@
 // Messages exchanged between apps and the relay server.
 // Shared by both sides so validation rules never drift apart.
+//
+// A "room" works like a group chat: whoever has the invite code can join,
+// and everyone in the room sees everyone's character along the bottom of their screen.
 
 const CODE_PATTERN = /^[A-Z0-9]{6}$/;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_NAME_LENGTH = 12;
 const MAX_MESSAGE_LENGTH = 80;
-const MAX_FRIENDS = 20;
+const MAX_ROOM_MEMBERS = 12;
+const ROOM_HISTORY = 30;
 
 function isCode(value) {
   return typeof value === 'string' && CODE_PATTERN.test(value);
@@ -23,6 +27,11 @@ function cleanText(value, maxLength) {
   return Array.from(text).slice(0, maxLength).join('');
 }
 
+/** Invite codes are typed by people: be forgiving about case and spaces. */
+function normalizeCode(value) {
+  return typeof value === 'string' ? value.replace(/\s+/g, '').toUpperCase() : '';
+}
+
 const fail = (error) => ({ ok: false, error });
 const pass = (value) => ({ ok: true, value });
 
@@ -30,19 +39,28 @@ function parseHello(data) {
   if (!isCode(data.code)) return fail('bad-code');
   const name = cleanText(data.name, MAX_NAME_LENGTH);
   if (!name) return fail('bad-name');
-  const friends = Array.isArray(data.friends) ? data.friends.filter(isCode).slice(0, MAX_FRIENDS) : [];
-  return pass({ type: 'hello', code: data.code, name, friends });
+  // room: the room this app was in last time, so rooms survive a server restart.
+  const room = isCode(data.room) ? data.room : null;
+  return pass({ type: 'hello', code: data.code, name, room });
 }
 
-function parseVisit(data) {
-  if (!isCode(data.to)) return fail('bad-code');
+function parseJoin(data) {
+  const room = normalizeCode(data.room);
+  return isCode(room) ? pass({ type: 'join-room', room }) : fail('bad-room');
+}
+
+function parseSay(data) {
   const message = cleanText(data.message, MAX_MESSAGE_LENGTH);
-  if (!message) return fail('empty-message');
-  // opens: this line starts a visit (the sender's character walks over).
-  return pass({ type: 'visit', to: data.to, message, opens: data.opens === true });
+  return message ? pass({ type: 'say', message }) : fail('empty-message');
 }
 
-const PARSERS = { hello: parseHello, visit: parseVisit };
+const PARSERS = {
+  hello: parseHello,
+  'create-room': () => pass({ type: 'create-room' }),
+  'join-room': parseJoin,
+  'leave-room': () => pass({ type: 'leave-room' }),
+  say: parseSay,
+};
 
 function parseClientMessage(raw) {
   let data;
@@ -59,8 +77,11 @@ function parseClientMessage(raw) {
 module.exports = {
   MAX_NAME_LENGTH,
   MAX_MESSAGE_LENGTH,
+  MAX_ROOM_MEMBERS,
+  ROOM_HISTORY,
   isCode,
   makeCode,
   cleanText,
+  normalizeCode,
   parseClientMessage,
 };

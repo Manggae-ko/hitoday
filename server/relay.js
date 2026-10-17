@@ -1,41 +1,86 @@
-// Tiny relay: passes chat lines ("visit" messages) between friends, both ways.
-// It never sees anyone's screen — only codes, names and short notes.
+// Room relay: like a group chat. Everyone in a room sees everyone's character,
+// who's online, and what they say. It never sees anyone's screen.
 
 const http = require('node:http');
+const crypto = require('node:crypto');
 const { WebSocketServer } = require('ws');
-const { parseClientMessage } = require('../shared/protocol');
+const { parseClientMessage, makeCode, MAX_ROOM_MEMBERS, ROOM_HISTORY } = require('../shared/protocol');
 const { createWebHandler } = require('./web');
 
-const MIN_VISIT_INTERVAL_MS = 800; // fast enough to chat, slow enough to stop spam
-
-const MAX_QUEUED_PER_USER = 20;
-const QUEUE_TTL_MS = 24 * 60 * 60 * 1000;
+const MIN_SAY_INTERVAL_MS = 800; // fast enough to chat, slow enough to stop spam
 const MAX_PAYLOAD_BYTES = 2_048;
+const MAX_ROOMS = 10_000;
 
 function send(ws, payload) {
   if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(payload));
 }
 
 function createRelay({ port = 8787, now = Date.now, log = () => {}, repo } = {}) {
-  const online = new Map(); // code -> ws
-  const friendsOf = new Map(); // code -> Set of codes they accept visits from
-  const queues = new Map(); // code -> pending visits
-  const lastVisitAt = new Map(); // code -> timestamp
+  const online = new Map(); // user code -> ws
+  const rooms = new Map(); // room code -> { members: Map(user code -> { name, joinedAt }), history: [] }
+  const roomOf = new Map(); // user code -> room code
+  const lastSayAt = new Map(); // user code -> timestamp
 
-  // Plain HTTP serves the download page; WebSockets upgrade on the same port.
   const httpServer = http.createServer(createWebHandler({ repo }));
   const wss = new WebSocketServer({ server: httpServer, maxPayload: MAX_PAYLOAD_BYTES });
 
-  function flushQueue(code, ws) {
-    const fresh = (queues.get(code) || []).filter((v) => now() - v.sentAt < QUEUE_TTL_MS);
-    queues.delete(code);
-    // late: left while they were offline, so it shows as a note, not a visit.
-    fresh.forEach((visit) => send(ws, { ...visit, late: true }));
+  function roomSnapshot(roomCode) {
+    const room = rooms.get(roomCode);
+    const members = [...room.members.entries()]
+      .sort((a, b) => a[1].joinedAt - b[1].joinedAt)
+      .map(([code, m]) => ({ code, name: m.name, color: m.color, online: online.has(code) }));
+    return { type: 'room', room: roomCode, members, history: room.history };
   }
 
-  function enqueue(code, visit) {
-    const queue = queues.get(code) || [];
-    queues.set(code, [...queue, visit].slice(-MAX_QUEUED_PER_USER));
+  function broadcast(roomCode, payload) {
+    const room = rooms.get(roomCode);
+    if (!room) return;
+    room.members.forEach((_m, code) => send(online.get(code), payload));
+  }
+
+  const broadcastState = (roomCode) => rooms.has(roomCode) && broadcast(roomCode, roomSnapshot(roomCode));
+
+  function newRoomCode() {
+    let code;
+    do code = makeCode((n) => crypto.randomInt(n));
+    while (rooms.has(code));
+    return code;
+  }
+
+  function leaveRoom(user) {
+    const roomCode = roomOf.get(user);
+    if (!roomCode) return;
+    roomOf.delete(user);
+    const room = rooms.get(roomCode);
+    if (!room) return;
+    room.members.delete(user);
+    if (room.members.size === 0) rooms.delete(roomCode);
+    else broadcastState(roomCode);
+  }
+
+  /** Puts a user in a room. Returns an error reason, or null on success. */
+  function enterRoom(user, name, roomCode, { create }) {
+    if (roomOf.get(user) === roomCode && rooms.has(roomCode)) {
+      rooms.get(roomCode).members.get(user).name = name;
+      broadcastState(roomCode);
+      return null;
+    }
+    if (!rooms.has(roomCode)) {
+      if (!create) return 'no-room';
+      if (rooms.size >= MAX_ROOMS) return 'server-full';
+      rooms.set(roomCode, { members: new Map(), history: [] });
+    }
+    const room = rooms.get(roomCode);
+    if (room.members.size >= MAX_ROOM_MEMBERS) return 'room-full';
+    leaveRoom(user);
+    // Each member gets the lowest free color, so nobody in a room shares one.
+    const taken = new Set([...room.members.values()].map((m) => m.color));
+    let color = 0;
+    while (taken.has(color)) color += 1;
+    room.members.set(user, { name, joinedAt: now(), color });
+    roomOf.set(user, roomCode);
+    broadcastState(roomCode);
+    return null;
   }
 
   function handleHello(ws, msg) {
@@ -43,30 +88,40 @@ function createRelay({ port = 8787, now = Date.now, log = () => {}, repo } = {})
     if (previous && previous !== ws) previous.close(4000, 'replaced');
     ws.user = { code: msg.code, name: msg.name };
     online.set(msg.code, ws);
-    friendsOf.set(msg.code, new Set(msg.friends));
     send(ws, { type: 'welcome', code: msg.code });
-    flushQueue(msg.code, ws);
-    log(`hello ${msg.code}`);
+    // Rejoin (or rebuild after a server restart) the room this app was in.
+    const roomCode = roomOf.get(msg.code) || msg.room;
+    if (roomCode && enterRoom(msg.code, msg.name, roomCode, { create: true }) === null) return;
+    send(ws, { type: 'left-room' });
   }
 
-  function handleVisit(ws, msg) {
-    const from = ws.user.code;
-    const last = lastVisitAt.get(from) || 0;
-    if (now() - last < MIN_VISIT_INTERVAL_MS) return send(ws, { type: 'error', reason: 'too-fast' });
-
-    const accepted = friendsOf.get(msg.to);
-    if (accepted && !accepted.has(from)) return send(ws, { type: 'error', reason: 'not-friends' });
-
-    lastVisitAt.set(from, now());
-    const { message, opens } = msg;
-    const visit = { type: 'visit', from, fromName: ws.user.name, message, opens, sentAt: now() };
-    const target = online.get(msg.to);
-    if (target) send(target, visit);
-    else enqueue(msg.to, visit);
-    send(ws, { type: 'visit-sent', to: msg.to, message, opens, queued: !target });
+  function handleSay(ws, { message }) {
+    const { code, name } = ws.user;
+    const roomCode = roomOf.get(code);
+    if (!roomCode) return send(ws, { type: 'error', reason: 'no-room' });
+    if (now() - (lastSayAt.get(code) || 0) < MIN_SAY_INTERVAL_MS) return send(ws, { type: 'error', reason: 'too-fast' });
+    lastSayAt.set(code, now());
+    const line = { from: code, fromName: name, message, at: now() };
+    const room = rooms.get(roomCode);
+    room.history = [...room.history, line].slice(-ROOM_HISTORY);
+    return broadcast(roomCode, { type: 'said', ...line });
   }
 
-  const HANDLERS = { visit: handleVisit };
+  const HANDLERS = {
+    'create-room': (ws) => {
+      const reason = enterRoom(ws.user.code, ws.user.name, newRoomCode(), { create: true });
+      if (reason) send(ws, { type: 'error', reason });
+    },
+    'join-room': (ws, msg) => {
+      const reason = enterRoom(ws.user.code, ws.user.name, msg.room, { create: false });
+      if (reason) send(ws, { type: 'error', reason });
+    },
+    'leave-room': (ws) => {
+      leaveRoom(ws.user.code);
+      send(ws, { type: 'left-room' });
+    },
+    say: handleSay,
+  };
 
   wss.on('connection', (ws) => {
     ws.on('message', (raw) => {
@@ -78,7 +133,10 @@ function createRelay({ port = 8787, now = Date.now, log = () => {}, repo } = {})
       return HANDLERS[msg.type](ws, msg);
     });
     ws.on('close', () => {
-      if (ws.user && online.get(ws.user.code) === ws) online.delete(ws.user.code);
+      if (!ws.user || online.get(ws.user.code) !== ws) return;
+      online.delete(ws.user.code);
+      const roomCode = roomOf.get(ws.user.code);
+      if (roomCode) broadcastState(roomCode); // show them as asleep
     });
     ws.on('error', (err) => log(`socket error: ${err.message}`));
   });
@@ -95,7 +153,7 @@ function createRelay({ port = 8787, now = Date.now, log = () => {}, repo } = {})
   };
 }
 
-module.exports = { createRelay, MIN_VISIT_INTERVAL_MS };
+module.exports = { createRelay, MIN_SAY_INTERVAL_MS };
 
 if (require.main === module) {
   const port = Number(process.env.PORT) || 8787;

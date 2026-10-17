@@ -14,39 +14,53 @@
     </header>
 
     <main>
-      <section class="card card-chat" aria-labelledby="chat-heading">
-        <h2 id="chat-heading" class="eyebrow">친구랑 얘기하기</h2>
-        <ol class="chat-log" id="chat-log" aria-live="polite">
-          <li class="chat-empty">아직 나눈 얘기가 없어요. 먼저 말 걸어 보세요!</li>
-        </ol>
-        <form id="send-form" class="send-row">
-          <label class="sr-only" for="message">할 말</label>
-          <input id="message" maxlength="80" autocomplete="off" placeholder="뭐해? 밥 먹었어?" />
-          <button type="submit" class="go" id="go" aria-label="보내기">→</button>
+      <!-- Not in a room yet -->
+      <section class="card card-lobby" id="lobby" aria-labelledby="lobby-heading">
+        <h2 id="lobby-heading" class="eyebrow">방에 들어가기</h2>
+        <p class="lobby-lede">방 하나에 친구들을 초대하면, 다 같이 서로의 바탕화면 아래에 나타나요.</p>
+        <button type="button" class="go wide" id="create">새 방 만들기</button>
+        <p class="or">또는 초대 코드로</p>
+        <form id="join-form" class="send-row">
+          <label class="sr-only" for="invite">초대 코드</label>
+          <input id="invite" maxlength="7" autocomplete="off" spellcheck="false" placeholder="초대 코드 6자리" />
+          <button type="submit" class="chip-btn" id="join">들어가기</button>
         </form>
-        <p class="counter" id="counter">0 / 80 · Enter로 보내기</p>
       </section>
 
-      <section class="card card-me" aria-labelledby="me-heading">
-        <h2 id="me-heading" class="eyebrow">내 코드</h2>
-        <div class="code-row">
-          <output id="my-code" class="code">······</output>
+      <!-- In a room -->
+      <section class="card card-room" id="room" aria-labelledby="room-heading" hidden>
+        <div class="room-head">
+          <div>
+            <h2 id="room-heading" class="eyebrow">초대 코드</h2>
+            <output id="room-code" class="code">······</output>
+          </div>
           <button type="button" id="copy" class="chip">복사</button>
         </div>
-        <p class="hint">친구한테 이 코드를 알려주세요.</p>
+        <ul class="members" id="members" aria-label="방 멤버"></ul>
+
+        <ol class="chat-log" id="chat-log" aria-live="polite"></ol>
+        <form id="send-form" class="send-row">
+          <label class="sr-only" for="message">할 말</label>
+          <input id="message" maxlength="80" autocomplete="off" placeholder="다들 뭐해?" />
+          <button type="submit" class="go" id="go" aria-label="보내기">→</button>
+        </form>
+        <div class="room-foot">
+          <span class="counter" id="counter">0 / 80 · Enter로 보내기</span>
+          <button type="button" class="link" id="leave">방 나가기</button>
+        </div>
       </section>
 
       <form id="settings-form" class="settings" aria-labelledby="settings-heading">
-        <h2 id="settings-heading" class="eyebrow">설정</h2>
-        <div class="settings-grid">
-          <label>내 이름 <input id="name" maxlength="12" autocomplete="off" /></label>
-          <label>친구 코드 <input id="friend" maxlength="6" autocomplete="off" placeholder="ABC234" /></label>
+        <h2 id="settings-heading" class="eyebrow">내 캐릭터</h2>
+        <div class="send-row">
+          <label class="sr-only" for="name">내 이름</label>
+          <input id="name" maxlength="12" autocomplete="off" />
+          <button type="submit" class="chip-btn">이름 저장</button>
         </div>
-        <details>
-          <summary>고급: 서버 주소</summary>
+        <details id="server-box" hidden>
+          <summary>개발용: 서버 주소</summary>
           <input id="server" autocomplete="off" spellcheck="false" />
         </details>
-        <button type="submit" class="save">저장</button>
       </form>
 
       <p class="notice" id="notice" role="status" aria-live="polite"></p>

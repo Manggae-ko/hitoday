@@ -1,4 +1,4 @@
-// Local profile: my code, my name, my one friend, which server to use.
+// Local profile: my code, my name, the room I'm in, which server to use.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -10,6 +10,10 @@ const FILE_NAME = 'profile.json';
 const PACKAGED_SERVER = (require('../../package.json').nolleowa || {}).server;
 const DEFAULT_SERVER = process.env.NOLLEOWA_SERVER || PACKAGED_SERVER || 'ws://localhost:8787';
 
+// A distinct default name, so two new users never both show up as the same name.
+const defaultName = (code) => `말랑${code.slice(0, 2)}`;
+const OLD_DEFAULT_NAME = '나';
+
 function isServerUrl(value) {
   try {
     const url = new URL(value);
@@ -17,20 +21,6 @@ function isServerUrl(value) {
   } catch {
     return false;
   }
-}
-
-// A distinct default name, so two new users never both show up as the same name.
-const defaultName = (code) => `말랑${code.slice(0, 2)}`;
-const OLD_DEFAULT_NAME = '나';
-
-function freshProfile() {
-  const code = makeCode((n) => crypto.randomInt(n));
-  return {
-    code,
-    name: defaultName(code),
-    friendCode: '',
-    serverUrl: DEFAULT_SERVER,
-  };
 }
 
 function readJson(file) {
@@ -51,15 +41,14 @@ function saveProfile(dir, profile) {
 }
 
 function loadProfile(dir) {
-  const base = freshProfile();
   const stored = readJson(path.join(dir, FILE_NAME)) || {};
-  const code = isCode(stored.code) ? stored.code : base.code;
+  const code = isCode(stored.code) ? stored.code : makeCode((n) => crypto.randomInt(n));
   const storedName = cleanText(stored.name, MAX_NAME_LENGTH);
   const profile = {
     code,
     name: storedName && storedName !== OLD_DEFAULT_NAME ? storedName : defaultName(code),
-    friendCode: isCode(stored.friendCode) ? stored.friendCode : '',
-    serverUrl: isServerUrl(stored.serverUrl) ? stored.serverUrl : base.serverUrl,
+    room: isCode(stored.room) ? stored.room : '',
+    serverUrl: isServerUrl(stored.serverUrl) ? stored.serverUrl : DEFAULT_SERVER,
   };
   saveProfile(dir, profile);
   return profile;
@@ -69,15 +58,11 @@ function loadProfile(dir) {
 function applyChanges(profile, changes) {
   const name = cleanText(changes.name, MAX_NAME_LENGTH);
   if (!name) return { error: '이름을 입력해 주세요.' };
-
-  const friendCode = String(changes.friendCode || '').trim().toUpperCase();
-  if (friendCode && !isCode(friendCode)) return { error: '친구 코드는 영문·숫자 6자리예요.' };
-  if (friendCode === profile.code) return { error: '내 코드는 친구로 등록할 수 없어요.' };
-
   const serverUrl = String(changes.serverUrl || '').trim();
   if (!isServerUrl(serverUrl)) return { error: '서버 주소는 ws:// 또는 wss:// 로 시작해야 해요.' };
-
-  return { profile: { ...profile, name, friendCode, serverUrl } };
+  return { profile: { ...profile, name, serverUrl } };
 }
 
-module.exports = { loadProfile, saveProfile, applyChanges };
+const withRoom = (profile, room) => ({ ...profile, room: isCode(room) ? room : '' });
+
+module.exports = { loadProfile, saveProfile, applyChanges, withRoom };

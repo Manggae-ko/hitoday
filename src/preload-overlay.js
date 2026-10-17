@@ -1,21 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 // Stage directions the main process may send to the overlay.
-const COMMANDS = [
-  'me:go',
-  'me:return',
-  'me:return-now',
-  'me:drop-note',
-  'edge:line',
-  'home:says',
-  'home:note',
-  'home:rename',
-  'guest:says',
-  'guest:leave',
-];
+const COMMANDS = ['room:members', 'member:says'];
 
 contextBridge.exposeInMainWorld('nolleowa', {
-  getHome: () => ipcRenderer.invoke('overlay:get-home'),
+  ready: () => ipcRenderer.invoke('overlay:ready'),
   onCommand: (callback) => {
     COMMANDS.forEach((channel) => ipcRenderer.on(channel, (_e, payload) => callback(channel, payload || {})));
   },

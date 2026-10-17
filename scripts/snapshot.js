@@ -85,6 +85,15 @@ app.whenReady().then(async () => {
   await wait(400);
   await save(control, 'control.png');
 
+  // Download page, desktop and phone widths, captured mid-animation.
+  const page = path.join(__dirname, '..', 'web', 'index.html');
+  for (const [w, h, name] of [[1200, 900, 'web-desktop.png'], [390, 1400, 'web-phone.png']]) {
+    const win = new BrowserWindow({ width: w, height: h, show: false, webPreferences: { offscreen: true } });
+    await win.loadFile(page);
+    await wait(5_600);
+    await save(win, name);
+  }
+
   process.stdout.write(`snapshots saved to ${outDir}\n`);
   app.quit();
 });

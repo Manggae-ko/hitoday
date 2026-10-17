@@ -44,6 +44,7 @@
           "arch": ["universal"]
         }
       ],
+      "artifactName": "Nolleowa-mac.${ext}",
       "category": "public.app-category.social-networking",
       "extendInfo": {
         "LSUIElement": true
@@ -53,6 +54,7 @@
       "target": ["nsis"]
     },
     "nsis": {
+      "artifactName": "Nolleowa-Setup.${ext}",
       "oneClick": true,
       "perMachine": false
     },

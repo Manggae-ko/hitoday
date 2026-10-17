@@ -7,3 +7,7 @@ services:
     dockerContext: .
     plan: free
     healthCheckPath: /health
+    envVars:
+      # Download buttons point at this repo's latest GitHub Release, e.g. "myname/nolleowa".
+      - key: GITHUB_REPO
+        sync: false

@@ -7,6 +7,7 @@ body {
   font-size: var(--text-base);
   color: var(--ink);
   background: var(--paper);
+  word-break: keep-all;
 }
 
 .masthead {

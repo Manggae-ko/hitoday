@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>놀러와 · 친구 바탕화면에 놀러 가기</title>
+    <meta name="description" content="내 캐릭터가 친구 바탕화면에 걸어 들어가서 같이 얘기해요. 맥·윈도우 무료." />
+    <meta property="og:title" content="놀러와" />
+    <meta property="og:description" content="내 캐릭터가 친구 바탕화면에 놀러 가요." />
+    <style>
+      :root {
+        --paper: #f6f1e7;
+        --paper-raised: #fffaf0;
+        --ink: #2b2420;
+        --ink-soft: #6f635a;
+        --accent: #ff8a5b;
+        --accent-ink: #3a1607;
+        --sky: #8fb3c9;
+        --grass: #b7c99a;
+        --font: "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", system-ui, sans-serif;
+        --shadow: 4px 4px 0 var(--ink);
+        --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root { --paper: #1f1b18; --paper-raised: #2a2521; --ink: #f3ebe0; --ink-soft: #b3a698; --accent: #ff9a70; --accent-ink: #2a0f04; }
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: var(--font); color: var(--ink); background: var(--paper); line-height: 1.6; word-break: keep-all; }
+      main { max-width: 980px; margin: 0 auto; padding: 48px 20px 64px; }
+
+      .hero { display: grid; gap: 28px; }
+      h1 { margin: 0; font-size: clamp(2.6rem, 1.6rem + 5vw, 5rem); font-weight: 900; line-height: 1.02; letter-spacing: -0.05em; }
+      h1 em { font-style: normal; background: linear-gradient(transparent 62%, color-mix(in oklab, var(--accent) 55%, transparent) 62%); }
+      .lede { margin: 0; max-width: 34ch; font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.3rem); color: var(--ink-soft); }
+
+      /* Two "monitors" side by side: one character walks from the left screen to the right. */
+      .scene { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      .screen { position: relative; height: 210px; overflow: hidden; border: 3px solid #2b2420; border-radius: 16px; box-shadow: 4px 4px 0 #2b2420; }
+      .screen.left { background: var(--sky); rotate: -1deg; }
+      .screen.right { background: var(--grass); rotate: 1deg; }
+      .screen .label { position: absolute; top: 8px; left: 12px; font-size: 0.75rem; font-weight: 800; color: #2b2420; opacity: 0.7; }
+      .mochi { position: absolute; bottom: 6px; width: 76px; height: 76px; }
+      .walker { animation: cross-left 9s linear infinite; left: 0; }
+      .walker-in { animation: cross-right 9s linear infinite; left: 0; }
+      .host { right: 18px; }
+      .bubble {
+        position: absolute; bottom: 92px; padding: 6px 12px; font-size: 0.85rem; color: #2b2420; white-space: nowrap;
+        background: #fffaf0; border: 2px solid #2b2420; border-radius: 14px; box-shadow: 3px 3px 0 #2b2420; opacity: 0;
+      }
+      .bubble.hi { left: 30%; animation: say 9s infinite; }
+      .bubble.yo { right: 10px; animation: reply 9s infinite; }
+      .sign {
+        position: absolute; right: 18px; bottom: 8px; padding: 4px 10px; font-size: 0.8rem; font-weight: 800; color: #3a2614;
+        background: #e9c79a; border: 2px solid #2b2420; border-radius: 6px; rotate: -3deg; opacity: 0; animation: sign 9s infinite;
+      }
+      @keyframes cross-left { 0%, 8% { transform: translateX(calc(100cqw - 100px)); } 30%, 100% { transform: translateX(calc(100cqw + 40px)); } }
+      @keyframes cross-right { 0%, 30% { transform: translateX(-90px); } 52%, 100% { transform: translateX(28cqw); } }
+      @keyframes say { 0%, 55% { opacity: 0; } 58%, 74% { opacity: 1; } 78%, 100% { opacity: 0; } }
+      @keyframes reply { 0%, 72% { opacity: 0; } 75%, 94% { opacity: 1; } 97%, 100% { opacity: 0; } }
+      @keyframes sign { 0%, 30% { opacity: 0; } 34%, 96% { opacity: 1; } 100% { opacity: 0; } }
+      .screen { container-type: inline-size; }
+
+      .downloads { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 10px; padding: 14px 22px; font-size: 1.15rem; font-weight: 900; text-decoration: none;
+        color: var(--accent-ink); background: var(--accent); border: 3px solid var(--ink); border-radius: 16px; box-shadow: var(--shadow);
+        transition: transform 140ms var(--ease-out), box-shadow 140ms var(--ease-out);
+      }
+      .btn.secondary { color: var(--ink); background: var(--paper-raised); }
+      .btn:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
+      .btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }
+      .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+      .free { font-size: 0.9rem; color: var(--ink-soft); }
+
+      .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin: 64px 0 0; padding: 0; list-style: none; counter-reset: step; }
+      .steps li { position: relative; padding: 18px 18px 18px 64px; background: var(--paper-raised); border: 2px solid var(--ink); border-radius: 18px; counter-increment: step; }
+      .steps li:nth-child(2) { rotate: 0.6deg; }
+      .steps li::before {
+        content: counter(step); position: absolute; left: 16px; top: 16px; display: grid; place-items: center; width: 34px; height: 34px;
+        font-weight: 900; color: var(--accent-ink); background: var(--accent); border: 2px solid var(--ink); border-radius: 50%;
+      }
+      .steps strong { display: block; font-size: 1.05rem; }
+      .steps span { color: var(--ink-soft); font-size: 0.95rem; }
+
+      .faq { margin-top: 56px; display: grid; gap: 10px; max-width: 680px; }
+      .faq h2 { margin: 0 0 6px; font-size: 1.3rem; font-weight: 900; }
+      details { padding: 12px 16px; background: var(--paper-raised); border: 2px solid var(--ink); border-radius: 14px; }
+      summary { cursor: pointer; font-weight: 800; }
+      details p { margin: 8px 0 0; color: var(--ink-soft); }
+      footer { margin-top: 56px; font-size: 0.85rem; color: var(--ink-soft); }
+
+      .body { fill: var(--c); stroke: #2b2420; stroke-width: 2.4; }
+      .eye { fill: #2b2420; }
+      .cheek { fill: #ff9f9f; opacity: 0.7; }
+      .mouth { fill: none; stroke: #2b2420; stroke-width: 2; stroke-linecap: round; }
+
+      @media (max-width: 560px) {
+        .scene { grid-template-columns: 1fr; }
+        .screen { height: 170px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .walker, .walker-in, .bubble, .sign { animation: none; }
+        .walker { display: none; }
+        .walker-in { transform: translateX(28cqw); }
+        .bubble, .sign { opacity: 1; }
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <symbol id="mochi" viewBox="0 0 100 100">
+        <ellipse class="body" cx="38" cy="89" rx="9" ry="5" />
+        <ellipse class="body" cx="62" cy="89" rx="9" ry="5" />
+        <ellipse class="body" cx="33" cy="27" rx="7" ry="9" />
+        <ellipse class="body" cx="67" cy="27" rx="7" ry="9" />
+        <path class="body" d="M50 22 C75 22 88 42 88 62 C88 80 72 89 50 89 C28 89 12 80 12 62 C12 42 25 22 50 22 Z" />
+        <ellipse class="eye" cx="38" cy="56" rx="3.2" ry="4.2" />
+        <ellipse class="eye" cx="62" cy="56" rx="3.2" ry="4.2" />
+        <ellipse class="cheek" cx="29" cy="66" rx="6" ry="3.5" />
+        <ellipse class="cheek" cx="71" cy="66" rx="6" ry="3.5" />
+        <path class="mouth" d="M46 63 Q50 67 54 63" />
+        <ellipse class="body" cx="15" cy="68" rx="6" ry="8" />
+        <ellipse class="body" cx="85" cy="68" rx="6" ry="8" />
+      </symbol>
+    </svg>
+
+    <main>
+      <section class="hero" aria-labelledby="title">
+        <h1 id="title">친구 바탕화면에<br /><em>놀러 가요</em></h1>
+        <p class="lede">말을 걸면 내 캐릭터가 화면 밖으로 걸어 나가서, 친구 바탕화면으로 들어가요. 거기서 같이 얘기해요.</p>
+
+        <div class="scene" role="img" aria-label="왼쪽 화면의 캐릭터가 오른쪽 친구 화면으로 걸어 들어가 인사하는 장면">
+          <div class="screen left">
+            <span class="label">내 화면</span>
+            <svg class="mochi walker" style="--c:#dff7ec"><use href="#mochi" /></svg>
+            <span class="sign">민지네 놀러 감</span>
+          </div>
+          <div class="screen right">
+            <span class="label">민지 화면</span>
+            <svg class="mochi walker-in" style="--c:#dff7ec"><use href="#mochi" /></svg>
+            <span class="bubble hi">뭐해?</span>
+            <svg class="mochi host" style="--c:#fbe0ef"><use href="#mochi" /></svg>
+            <span class="bubble yo">방금 퇴근함 ㅎㅎ</span>
+          </div>
+        </div>
+
+        <div class="downloads">
+          <a class="btn" href="/download/mac">맥 다운로드</a>
+          <a class="btn secondary" href="/download/win">윈도우 다운로드</a>
+          <span class="free">무료 · 관리자 권한 필요 없음</span>
+        </div>
+      </section>
+
+      <ol class="steps">
+        <li><strong>설치하고 켜기</strong><span>메뉴바(윈도우는 작업표시줄 오른쪽)에 아이콘이 생겨요.</span></li>
+        <li><strong>코드 교환하기</strong><span>내 코드를 친구한테 보내고, 친구 코드를 등록해요.</span></li>
+        <li><strong>말 걸기</strong><span>캐릭터가 친구 화면으로 걸어가요. 1분 조용하면 집에 돌아와요.</span></li>
+      </ol>
+
+      <section class="faq" aria-labelledby="faq-title">
+        <h2 id="faq-title">자주 묻는 것</h2>
+        <details>
+          <summary>처음 열 때 경고가 떠요</summary>
+          <p>아직 앱 서명 전이라 그래요. 맥: 시스템 설정 → 개인정보 보호 및 보안 → "그래도 열기". 윈도우: "추가 정보" → "실행".</p>
+        </details>
+        <details>
+          <summary>회사 컴퓨터에서도 되나요?</summary>
+          <p>관리자 권한 없이 설치돼요. 다만 회사가 승인되지 않은 앱 실행을 막아뒀다면 쓸 수 없어요. 회사 보안 정책을 먼저 확인해 주세요.</p>
+        </details>
+        <details>
+          <summary>친구가 내 화면을 볼 수 있나요?</summary>
+          <p>아니요. 오가는 건 캐릭터와 짧은 말뿐이에요. 화면 내용은 절대 보내지 않아요. 서로 코드를 등록한 친구끼리만 놀러 올 수 있어요.</p>
+        </details>
+      </section>
+
+      <footer>놀러와 · 캐릭터 "말랑이"는 직접 그린 오리지널 캐릭터예요.</footer>
+    </main>
+  </body>
+</html>

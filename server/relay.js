@@ -4,6 +4,7 @@
 const http = require('node:http');
 const { WebSocketServer } = require('ws');
 const { parseClientMessage } = require('../shared/protocol');
+const { createWebHandler } = require('./web');
 
 const MIN_VISIT_INTERVAL_MS = 800; // fast enough to chat, slow enough to stop spam
 
@@ -15,18 +16,14 @@ function send(ws, payload) {
   if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(payload));
 }
 
-function createRelay({ port = 8787, now = Date.now, log = () => {} } = {}) {
+function createRelay({ port = 8787, now = Date.now, log = () => {}, repo } = {}) {
   const online = new Map(); // code -> ws
   const friendsOf = new Map(); // code -> Set of codes they accept visits from
   const queues = new Map(); // code -> pending visits
   const lastVisitAt = new Map(); // code -> timestamp
 
-  // Plain HTTP for hosting health checks; WebSockets upgrade on the same port.
-  const httpServer = http.createServer((req, res) => {
-    const healthy = req.url === '/health';
-    res.writeHead(healthy ? 200 : 404, { 'content-type': 'text/plain' });
-    res.end(healthy ? 'ok' : 'not found');
-  });
+  // Plain HTTP serves the download page; WebSockets upgrade on the same port.
+  const httpServer = http.createServer(createWebHandler({ repo }));
   const wss = new WebSocketServer({ server: httpServer, maxPayload: MAX_PAYLOAD_BYTES });
 
   function flushQueue(code, ws) {

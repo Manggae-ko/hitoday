@@ -6,6 +6,7 @@ body {
   background: transparent;
   font-family: var(--font-ui);
   user-select: none;
+  word-break: keep-all;
 }
 
 #stage {

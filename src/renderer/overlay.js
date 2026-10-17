@@ -20,6 +20,13 @@ let hasLinedUp = false;
 
 const offLeft = () => -CHAR_WIDTH - 20;
 
+const DRAG_THRESHOLD_PX = 5;
+const DRAG_SEND_MS = 120;
+
+/** Turns a chosen spot (center as a fraction of width) into a left edge in pixels. */
+const spotToX = (spot) => Math.min(window.innerWidth - CHAR_WIDTH, Math.max(0, spot * window.innerWidth - CHAR_WIDTH / 2));
+const xToSpot = (x) => Math.min(1, Math.max(0, (x + CHAR_WIDTH / 2) / window.innerWidth));
+
 /** x position for the n-th person from the right; squeezes together on narrow screens. */
 function slotX(index, count) {
   const room = window.innerWidth - EDGE_INSET * 2 - CHAR_WIDTH;
@@ -58,6 +65,48 @@ function perform(actor, move) {
   actor.chain = actor.chain.then(move).catch((err) => console.error('stage move failed', err));
 }
 
+/** Where someone should stand: their chosen spot, or their automatic place in line. */
+const targetX = (actor, count) => (actor.spot !== null && actor.spot !== undefined ? spotToX(actor.spot) : slotX(actor.index, count));
+
+// --- dragging my own character ---------------------------------------------
+
+let drag = null; // { startX, originX, moved, lastSent }
+let justDragged = false;
+
+function startDrag(actor, event) {
+  if (event.button !== 0) return;
+  actor.character.root.setPointerCapture(event.pointerId);
+  actor.character.root.getAnimations().forEach((a) => a.cancel()); // stop any walk in progress
+  drag = { actor, startX: event.clientX, originX: actor.character.x, moved: false, lastSent: 0 };
+}
+
+function moveDrag(event) {
+  if (!drag) return;
+  const dx = event.clientX - drag.startX;
+  if (!drag.moved && Math.abs(dx) < DRAG_THRESHOLD_PX) return;
+  const { character } = drag.actor;
+  const x = Math.min(window.innerWidth - CHAR_WIDTH, Math.max(0, drag.originX + dx));
+  if (!drag.moved) character.pose('is-walking');
+  drag.moved = true;
+  character.face(x < character.x ? 'left' : 'right');
+  place(character, x);
+  if (event.timeStamp - drag.lastSent > DRAG_SEND_MS) {
+    drag.lastSent = event.timeStamp;
+    api.move(xToSpot(x), false); // friends see me walk while I drag
+  }
+}
+
+function endDrag() {
+  if (!drag) return;
+  const { actor, moved } = drag;
+  drag = null;
+  if (!moved) return;
+  justDragged = true; // the click that follows a drag shouldn't open the settings window
+  actor.spot = xToSpot(actor.character.x);
+  actor.character.pose();
+  api.move(actor.spot, true);
+}
+
 function createActor(member, isMe) {
   const character = createCharacter({
     name: member.name,
@@ -70,13 +119,24 @@ function createActor(member, isMe) {
   zzz.className = 'zzz';
   zzz.textContent = 'z z';
   character.root.append(zzz);
+  const actor = { character, chain: Promise.resolve(), bubbleTimer: null, index: -1, spot: null };
   character.root.addEventListener('click', () => {
+    if (justDragged) {
+      justDragged = false;
+      return;
+    }
     // During the reaction race, clicking my own character is the game move.
     if (isMe && games.takeClick()) return;
     api.openControl();
   });
+  if (isMe) {
+    character.root.addEventListener('pointerdown', (event) => startDrag(actor, event));
+    character.root.addEventListener('pointermove', moveDrag);
+    character.root.addEventListener('pointerup', endDrag);
+    character.root.addEventListener('pointercancel', endDrag);
+  }
   stage.append(character.root);
-  return { character, chain: Promise.resolve(), bubbleTimer: null, index: -1 };
+  return actor;
 }
 
 function updateLineup({ me, members }) {
@@ -103,10 +163,13 @@ function updateLineup({ me, members }) {
     const actor = isNew ? createActor(member, member.code === me) : actors.get(member.code);
     actors.set(member.code, actor);
     actor.index = index;
+    // While I'm dragging, my own spot is whatever is under my mouse.
+    if (!(drag && drag.actor === actor)) actor.spot = member.x ?? null;
     actor.character.setLabel(member.name);
     actor.character.setLook(colorFor(member.code, member.color), member.avatar, member.character);
     actor.character.root.classList.toggle('is-asleep', !member.online);
-    const target = slotX(index, count);
+    if (drag && drag.actor === actor) return;
+    const target = targetX(actor, count);
     if (isNew) {
       // On first launch everyone is simply there; later arrivals walk in.
       place(actor.character, hasLinedUp && member.code !== me ? offLeft() : target);
@@ -156,9 +219,18 @@ const games = window.GameStage.createGameStage({
   clearMarks: (cls) => actors.forEach((actor) => actor.character.root.classList.remove(cls)),
 }, api);
 
+/** A friend dragged their character somewhere: walk there. */
+function memberMoved({ code, x }) {
+  const actor = actors.get(code);
+  if (!actor) return;
+  actor.spot = x;
+  perform(actor, () => walk(actor.character, targetX(actor, lineup.length)));
+}
+
 const DIRECTIONS = {
   'room:members': updateLineup,
   'member:says': memberSays,
+  'member:moved': memberMoved,
   game: (msg) => games.handle(msg),
 };
 
@@ -167,6 +239,7 @@ const DIRECTIONS = {
 
 let ignoring = true;
 document.addEventListener('mousemove', (event) => {
+  if (drag) return; // keep the mouse while dragging, even if the pointer outruns the character
   const overCharacter = Boolean(event.target.closest && event.target.closest('.interactive'));
   if (overCharacter === !ignoring) return;
   ignoring = !overCharacter;
@@ -174,9 +247,9 @@ document.addEventListener('mousemove', (event) => {
 });
 
 window.addEventListener('resize', () => {
-  lineup.forEach((code, index) => {
+  lineup.forEach((code) => {
     const actor = actors.get(code);
-    if (actor) place(actor.character, slotX(index, lineup.length));
+    if (actor) place(actor.character, targetX(actor, lineup.length));
   });
 });
 

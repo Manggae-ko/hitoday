@@ -168,6 +168,29 @@ test("everyone sees each member's chosen character, and a re-hello updates it", 
     a.ws.close();
   }));
 
+test('moving my character reaches the room, and the final spot always arrives', () =>
+  withRelay(async (port) => {
+    const a = await hello(port, 'AAAAAA', '에이', 'WALK22');
+    await a.next('room');
+    const b = await hello(port, 'BBBBBB', '비', 'WALK22');
+    await b.next('room');
+
+    // A quick drag: many moves in a row; the last one must get through.
+    [0.2, 0.3, 0.4, 0.55].forEach((x) => a.say({ type: 'move', x }));
+    const last = await b.next('moved', (m) => m.x === 0.55);
+    assert.equal(last.code, 'AAAAAA');
+
+    // Late joiners see the spot in the room snapshot.
+    const c = await hello(port, 'CCCCCC', '씨', 'WALK22');
+    const room = await c.next('room');
+    assert.equal(room.members.find((m) => m.code === 'AAAAAA').x, 0.55);
+    assert.equal(room.members.find((m) => m.code === 'BBBBBB').x, null);
+
+    a.say({ type: 'move', x: 7 });
+    assert.equal((await a.next('error')).reason, 'bad-spot');
+    [a, b, c].forEach((x) => x.ws.close());
+  }));
+
 test('leaving removes you for everyone', () =>
   withRelay(async (port) => {
     const a = await hello(port, 'AAAAAA', '에이', 'LEAVE2');

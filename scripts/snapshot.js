@@ -97,6 +97,25 @@ app.whenReady().then(async () => {
   await wait(600);
   await save(overlay, 'room-strip.png');
 
+  // Drag my character (rightmost) to the middle with real mouse events, and move a friend.
+  const sentMoves = [];
+  ipcMain.removeAllListeners('overlay:move');
+  ipcMain.on('overlay:move', (_e, move) => sentMoves.push(move));
+  const mouse = (type, x, held) => overlay.webContents.sendInputEvent({
+    type, x, y: 370, button: 'left', clickCount: 1, modifiers: held ? ['leftButtonDown'] : [],
+  });
+  mouse('mouseMove', 1110, false);
+  mouse('mouseDown', 1110, true);
+  for (let x = 1100; x >= 640; x -= 40) {
+    mouse('mouseMove', x, true);
+    await wait(60);
+  }
+  mouse('mouseUp', 640, false);
+  overlay.webContents.send('member:moved', { code: 'BBQ234', x: 0.2 });
+  await wait(1_800);
+  await save(overlay, 'drag.png');
+  process.stdout.write(`drag sent ${sentMoves.length} moves, last: ${JSON.stringify(sentMoves.at(-1))}\n`);
+
   // A new friend joins: they walk in from the left.
   overlay.webContents.send('room:members', { me: ME, members: [...members, { code: 'NEW222', name: '새친구', character: 'ghost', color: 4, online: true }] });
   await wait(1_200);

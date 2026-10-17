@@ -13,6 +13,7 @@ const MAX_PAYLOAD_BYTES = 64 * 1024; // room for one base64 character image
 const MAX_ROOMS = 10_000;
 const MAX_AVATARS = 5_000; // 32KB each at most → ~160MB worst case
 const MIN_AVATAR_INTERVAL_MS = 2_000;
+const MIN_MOVE_INTERVAL_MS = 100;
 
 function send(ws, payload) {
   if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(payload));
@@ -32,6 +33,8 @@ function createRelay({
   const lastSayAt = new Map(); // user code -> timestamp
   const avatars = new Map(); // user code -> { bytes, kind, version } (apps re-send theirs on connect)
   const lastAvatarAt = new Map(); // user code -> timestamp
+  const lastMoveAt = new Map(); // user code -> timestamp
+  const pendingMoves = new Map(); // user code -> timer for a held-back move
 
   const httpServer = http.createServer(createWebHandler({ repo, avatars }));
   const wss = new WebSocketServer({ server: httpServer, maxPayload: MAX_PAYLOAD_BYTES });
@@ -46,6 +49,7 @@ function createRelay({
           code,
           name: m.name,
           character: m.character,
+          x: m.x ?? null,
           color: m.color,
           online: online.has(code),
           avatar: avatar ? avatar.version : null,
@@ -86,9 +90,9 @@ function createRelay({
   }
 
   /** Puts a user in a room. Returns an error reason, or null on success. */
-  function enterRoom(user, { name, character }, roomCode, { create }) {
+  function enterRoom(user, { name, character, x = null }, roomCode, { create }) {
     if (roomOf.get(user) === roomCode && rooms.has(roomCode)) {
-      Object.assign(rooms.get(roomCode).members.get(user), { name, character });
+      Object.assign(rooms.get(roomCode).members.get(user), { name, character, x });
       broadcastState(roomCode);
       return null;
     }
@@ -104,7 +108,7 @@ function createRelay({
     const taken = new Set([...room.members.values()].map((m) => m.color));
     let color = 0;
     while (taken.has(color)) color += 1;
-    room.members.set(user, { name, character, joinedAt: now(), color });
+    room.members.set(user, { name, character, x, joinedAt: now(), color });
     roomOf.set(user, roomCode);
     broadcastState(roomCode);
     return null;
@@ -113,7 +117,7 @@ function createRelay({
   function handleHello(ws, msg) {
     const previous = online.get(msg.code);
     if (previous && previous !== ws) previous.close(4000, 'replaced');
-    ws.user = { code: msg.code, name: msg.name, character: msg.character };
+    ws.user = { code: msg.code, name: msg.name, character: msg.character, x: msg.x };
     online.set(msg.code, ws);
     send(ws, { type: 'welcome', code: msg.code });
     // Rejoin (or rebuild after a server restart) the room this app was in.
@@ -134,6 +138,28 @@ function createRelay({
     return broadcast(roomCode, { type: 'said', ...line });
   }
 
+  /**
+   * Moving my character: tell the room at most ~10 times a second. Moves that come
+   * in faster are held back and the latest one goes out when the wait is over,
+   * so where I finally let go always reaches everyone.
+   */
+  function handleMove(ws, { x }) {
+    const { code } = ws.user;
+    const roomCode = roomOf.get(code);
+    if (!roomCode) return;
+    ws.user = { ...ws.user, x };
+    rooms.get(roomCode).members.get(code).x = x;
+    const announce = () => {
+      pendingMoves.delete(code);
+      lastMoveAt.set(code, now());
+      const member = rooms.has(roomCode) && rooms.get(roomCode).members.get(code);
+      if (member) broadcast(roomCode, { type: 'moved', code, x: member.x });
+    };
+    const wait = MIN_MOVE_INTERVAL_MS - (now() - (lastMoveAt.get(code) || 0));
+    if (wait <= 0) return announce();
+    if (!pendingMoves.has(code)) pendingMoves.set(code, setTimeout(announce, wait));
+  }
+
   const HANDLERS = {
     'create-room': (ws) => {
       const reason = enterRoom(ws.user.code, ws.user, newRoomCode(), { create: true });
@@ -148,6 +174,7 @@ function createRelay({
       send(ws, { type: 'left-room' });
     },
     say: handleSay,
+    move: handleMove,
     'set-avatar': (ws, msg) => {
       const { code } = ws.user;
       if (now() - (lastAvatarAt.get(code) || 0) < MIN_AVATAR_INTERVAL_MS) return send(ws, { type: 'error', reason: 'too-fast' });
@@ -196,6 +223,7 @@ function createRelay({
     port: () => httpServer.address().port,
     close: () => new Promise((resolve) => {
       games.stopAll();
+      pendingMoves.forEach((timer) => clearTimeout(timer));
       wss.clients.forEach((c) => c.terminate());
       wss.close(() => httpServer.close(resolve));
     }),

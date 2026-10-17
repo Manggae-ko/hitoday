@@ -28,6 +28,7 @@ const el = {
   avatarFile: $('avatar-file'),
   avatarReset: $('avatar-reset'),
   picker: $('picker'),
+  spotReset: $('spot-reset'),
 };
 
 const MAX_AVATAR_BYTES = 32 * 1024;
@@ -129,6 +130,7 @@ function render(state) {
     });
   }
   renderLook(state.look, state.color, state.character);
+  el.spotReset.hidden = !state.hasSpot;
   renderPicker(state);
   if (!formFilled) {
     el.name.value = state.name;
@@ -191,6 +193,7 @@ el.avatarFile.addEventListener('change', async () => {
   run(() => api.setAvatar(bytes)); // the main process checks size and format again
 });
 el.avatarReset.addEventListener('click', () => run(api.clearAvatar));
+el.spotReset.addEventListener('click', () => run(api.resetSpot));
 
 el.gameButtons.forEach((button) => {
   button.addEventListener('click', () => run(() => api.startGame(button.dataset.game)));

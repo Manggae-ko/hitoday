@@ -4,7 +4,7 @@ const WebSocket = require('ws');
 const { isAvatarVersion } = require('../../shared/avatar');
 const { isCharacter, DEFAULT_CHARACTER } = require('../../shared/characters');
 const {
-  isCode, cleanText, MAX_NAME_LENGTH, MAX_MESSAGE_LENGTH, MAX_ROOM_MEMBERS, ROOM_HISTORY, GAMES, RPS_HANDS,
+  isCode, cleanText, spotOrNull, MAX_NAME_LENGTH, MAX_MESSAGE_LENGTH, MAX_ROOM_MEMBERS, ROOM_HISTORY, GAMES, RPS_HANDS,
 } = require('../../shared/protocol');
 
 const MIN_RETRY_MS = 1_000;
@@ -24,7 +24,7 @@ function parseMember(data) {
   const avatar = isAvatarVersion(data.avatar) ? data.avatar : null;
   const avatarKind = avatar && ['single', 'sheet'].includes(data.avatarKind) ? data.avatarKind : null;
   const character = isCharacter(data.character) ? data.character : DEFAULT_CHARACTER;
-  return { code: data.code, name, character, color, online: data.online === true, avatar, avatarKind };
+  return { code: data.code, name, character, color, x: spotOrNull(data.x), online: data.online === true, avatar, avatarKind };
 }
 
 function parseRoom(data) {
@@ -79,6 +79,8 @@ function parseServerMessage(raw) {
     }
     case 'left-room':
       return { type: 'left-room' };
+    case 'moved':
+      return isCode(data.code) ? { type: 'moved', code: data.code, x: spotOrNull(data.x) } : null;
     case 'game':
       return parseGame(data);
     case 'error':

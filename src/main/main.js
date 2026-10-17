@@ -1,11 +1,11 @@
 const path = require('node:path');
 const { app, ipcMain, clipboard } = require('electron');
-const { loadProfile, saveProfile, applyChanges, withRoom, withCharacter } = require('./profile');
+const { loadProfile, saveProfile, applyChanges, withRoom, withCharacter, withSpot } = require('./profile');
 const { createTransport } = require('./transport');
 const { createOverlayWindow, createControlWindow } = require('./windows');
 const { createTray } = require('./tray');
 const {
-  cleanText, normalizeCode, isCode, MAX_MESSAGE_LENGTH, ROOM_HISTORY, GAMES, RPS_HANDS,
+  cleanText, normalizeCode, isCode, spotOrNull, MAX_MESSAGE_LENGTH, ROOM_HISTORY, GAMES, RPS_HANDS,
 } = require('../../shared/protocol');
 const { describeGame } = require('./game-text');
 const { checkAvatar } = require('../../shared/avatar');
@@ -70,6 +70,7 @@ function publicState() {
     look: lookOf({ code: profile.code }),
     color: myColor(),
     characters: CHARACTERS,
+    hasSpot: profile.x !== null,
     canEditServer: !app.isPackaged,
   };
 }
@@ -93,8 +94,8 @@ const toChatLine = (line) => ({ mine: line.from === state.profile.code, name: li
 
 // Who's on screen: everyone in my room, or just me when I'm not in one.
 function showMembers() {
-  const { code, name, character } = state.profile;
-  const members = state.room ? state.room.members : [{ code, name, character, online: true }];
+  const { code, name, character, x } = state.profile;
+  const members = state.room ? state.room.members : [{ code, name, character, x, online: true }];
   const dressed = members.map((m) => ({ ...m, color: colorFor(m.code, m.color), avatar: lookOf(m) }));
   toOverlay('room:members', { me: code, members: dressed });
 }
@@ -116,6 +117,12 @@ function handleServerMessage(msg) {
     rememberRoom('');
     pushState({ room: null, chat: [] });
     showMembers();
+  } else if (msg.type === 'moved') {
+    if (!state.room) return;
+    const members = state.room.members.map((m) => (m.code === msg.code ? { ...m, x: msg.x } : m));
+    state.room = { ...state.room, members };
+    // My own drag is already on screen; only friends' moves need playing out.
+    if (msg.code !== state.profile.code) toOverlay('member:moved', { code: msg.code, x: msg.x });
   } else if (msg.type === 'game') {
     handleGame(msg);
   } else if (msg.type === 'error' && !QUIET_ERRORS.has(msg.reason)) {
@@ -196,6 +203,26 @@ function registerIpc() {
     if (!state.room) return { ok: false, error: '먼저 방에 들어가 주세요.' };
     return sendOrFail({ type: 'start-game', game });
   });
+  ipcMain.on('overlay:move', (_e, { x, final } = {}) => {
+    const spot = spotOrNull(x);
+    if (spot === null) return;
+    transport.send({ type: 'move', x: spot });
+    if (!final) return;
+    state.profile = withSpot(state.profile, spot);
+    saveProfile(app.getPath('userData'), state.profile);
+  });
+  ipcMain.handle('control:reset-spot', () => {
+    state.profile = withSpot(state.profile, null);
+    saveProfile(app.getPath('userData'), state.profile);
+    transport.send({ type: 'move', x: null });
+    if (state.room) {
+      const members = state.room.members.map((m) => (m.code === state.profile.code ? { ...m, x: null } : m));
+      state.room = { ...state.room, members };
+    }
+    showMembers();
+    pushState({ notice: '자리를 원래대로 돌렸어요.' });
+    return { ok: true };
+  });
   ipcMain.on('overlay:game-move', (_e, move) => {
     if (move === 'tap' || RPS_HANDS.includes(move)) transport.send({ type: 'game-move', move });
   });
@@ -220,8 +247,8 @@ function registerIpc() {
 }
 
 function helloPayload() {
-  const { code, name, room, character } = state.profile;
-  return { code, name, room: room || undefined, character };
+  const { code, name, room, character, x } = state.profile;
+  return { code, name, room: room || undefined, character, x };
 }
 
 app.whenReady().then(() => {

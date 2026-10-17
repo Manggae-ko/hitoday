@@ -53,7 +53,7 @@ test('parseServerMessage drops malformed members and lines', () => {
     history: [{ from: 'AAAAAA', fromName: '동동', message: 'hi', at: 1 }, { from: 'AAAAAA' }],
   }));
   assert.deepEqual(room.members, [{
-    code: 'AAAAAA', name: '동동', character: 'mochi', color: 3, online: true, avatar: null, avatarKind: null,
+    code: 'AAAAAA', name: '동동', character: 'mochi', color: 3, x: null, online: true, avatar: null, avatarKind: null,
   }]);
   assert.equal(room.history.length, 1);
 });

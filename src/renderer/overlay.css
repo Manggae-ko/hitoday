@@ -74,6 +74,9 @@ body {
   border-radius: 999px;
 }
 .is-me .tag { background: #ffd2bd; }
+/* My own character can be dragged along the bottom of the screen. */
+.is-me { cursor: grab; touch-action: none; }
+.is-me:active { cursor: grabbing; }
 
 .bubble {
   position: absolute;

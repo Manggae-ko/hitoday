@@ -35,6 +35,15 @@ function normalizeCode(value) {
   return typeof value === 'string' ? value.replace(/\s+/g, '').toUpperCase() : '';
 }
 
+/**
+ * Where someone stands on the strip: the center of their character as a fraction
+ * of screen width (0 = left edge, 1 = right edge), or null for an automatic spot.
+ */
+function spotOrNull(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1) return null;
+  return Math.round(value * 1000) / 1000;
+}
+
 const fail = (error) => ({ ok: false, error });
 const pass = (value) => ({ ok: true, value });
 
@@ -45,7 +54,7 @@ function parseHello(data) {
   // room: the room this app was in last time, so rooms survive a server restart.
   const room = isCode(data.room) ? data.room : null;
   const character = isCharacter(data.character) ? data.character : DEFAULT_CHARACTER;
-  return pass({ type: 'hello', code: data.code, name, room, character });
+  return pass({ type: 'hello', code: data.code, name, room, character, x: spotOrNull(data.x) });
 }
 
 function parseJoin(data) {
@@ -81,8 +90,15 @@ function parseSetAvatar(data) {
   return pass({ type: 'set-avatar', bytes, kind: checked.kind, version: checked.version });
 }
 
+function parseMove(data) {
+  if (data.x === null) return pass({ type: 'move', x: null });
+  const x = spotOrNull(data.x);
+  return x === null ? fail('bad-spot') : pass({ type: 'move', x });
+}
+
 const PARSERS = {
   hello: parseHello,
+  move: parseMove,
   'set-avatar': parseSetAvatar,
   'create-room': () => pass({ type: 'create-room' }),
   'join-room': parseJoin,
@@ -115,5 +131,6 @@ module.exports = {
   makeCode,
   cleanText,
   normalizeCode,
+  spotOrNull,
   parseClientMessage,
 };

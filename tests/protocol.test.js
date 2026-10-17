@@ -11,7 +11,9 @@ test('makeCode produces a valid 6-char code', () => {
 
 test('hello keeps a remembered room only if it is a valid code', () => {
   assert.deepEqual(parse({ type: 'hello', code: 'ABC234', name: '동동', room: 'ROOM22', character: 'fox' }).value,
-    { type: 'hello', code: 'ABC234', name: '동동', room: 'ROOM22', character: 'fox' });
+    { type: 'hello', code: 'ABC234', name: '동동', room: 'ROOM22', character: 'fox', x: null });
+  assert.equal(parse({ type: 'hello', code: 'ABC234', name: '동동', x: 0.42 }).value.x, 0.42);
+  assert.equal(parse({ type: 'hello', code: 'ABC234', name: '동동', x: 3 }).value.x, null);
   assert.equal(parse({ type: 'hello', code: 'ABC234', name: '동동', room: 'nope' }).value.room, null);
 });
 

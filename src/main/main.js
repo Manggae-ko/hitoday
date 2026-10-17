@@ -67,7 +67,11 @@ function publicState() {
     ...visible,
     connected,
     notice,
-    room,
+    // Members carry their color and look so the window can draw their thumbnails.
+    room: room && {
+      ...room,
+      members: room.members.map((m) => ({ ...m, color: colorFor(m.code, m.color), look: lookOf(m) })),
+    },
     chat,
     game,
     look: lookOf({ code: profile.code }),
@@ -93,7 +97,9 @@ function rememberRoom(roomCode) {
   saveProfile(app.getPath('userData'), state.profile);
 }
 
-const toChatLine = (line) => ({ mine: line.from === state.profile.code, name: line.fromName, message: line.message });
+const toChatLine = (line) => ({
+  mine: line.from === state.profile.code, from: line.from, name: line.fromName, message: line.message,
+});
 
 // Who's on screen: everyone in my room, or just me when I'm not in one.
 function showMembers() {
@@ -266,7 +272,10 @@ app.whenReady().then(() => {
   if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true });
   state.profile = loadProfile(app.getPath('userData'));
   state.ownAvatar = loadOwnAvatar(app.getPath('userData'));
-  avatarCache = createAvatarCache({ getServerUrl: () => state.profile.serverUrl, onLoaded: showMembers });
+  avatarCache = createAvatarCache({
+    getServerUrl: () => state.profile.serverUrl,
+    onLoaded: () => { showMembers(); pushState(); }, // a friend's image arrived: redraw both windows
+  });
   registerIpc();
   overlay = createOverlayWindow();
   createTray({ onOpen: openControl, onQuit: () => app.quit() });

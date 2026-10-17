@@ -1,22 +1,46 @@
-/* Shared design tokens: warm paper + soft ink, like a hand-drawn sticker sheet. */
+/* Shared design tokens: warm paper, soft ink, pixel accents — a desk-toy sticker sheet. */
+
+/* Galmuri by Minseo Lee, SIL Open Font License 1.1 (fonts/OFL-Galmuri.md). */
+@font-face {
+  font-family: "Galmuri11";
+  src: url("fonts/Galmuri11.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Galmuri11";
+  src: url("fonts/Galmuri11-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
   --paper: #f6f1e7;
   --paper-raised: #fffaf0;
+  --paper-sunk: #ede5d6;
   --ink: #2b2420;
   --ink-soft: #6f635a;
+  --ink-faint: rgb(43 36 32 / 0.12);
   --line: #2b2420;
   --accent: #ff8a5b;
+  --accent-deep: #e0683c;
   --accent-ink: #3a1607;
-  --ok: #3f9b6e;
+  --butter: #fff0a6;
+  --mint: #bfeccf;
+  --ok: #2f9a63;
   --warn: #c2562f;
   --field: #ffffff;
 
   --font-ui: "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", system-ui, sans-serif;
+  --font-pixel: "Galmuri11", var(--font-ui);
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
   --text-base: 0.95rem;
   --text-lg: 1.25rem;
   --text-code: 1.9rem;
+  /* Galmuri is drawn on an 11px grid: these sizes stay crisp. */
+  --pixel-sm: 11px;
+  --pixel-md: 22px;
 
   --radius-sm: 8px;
   --radius-lg: 18px;
@@ -30,11 +54,16 @@
   :root {
     --paper: #1f1b18;
     --paper-raised: #2a2521;
+    --paper-sunk: #171411;
     --ink: #f3ebe0;
     --ink-soft: #b3a698;
+    --ink-faint: rgb(243 235 224 / 0.12);
     --line: #f3ebe0;
     --accent: #ff9a70;
+    --accent-deep: #ff7a48;
     --accent-ink: #2a0f04;
+    --butter: #5a4c1c;
+    --mint: #24533a;
     --ok: #6ccf9c;
     --warn: #ff9a7a;
     --field: #191512;

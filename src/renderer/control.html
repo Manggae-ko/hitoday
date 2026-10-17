@@ -2,86 +2,118 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'" />
     <title>작당모의</title>
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="control.css" />
   </head>
   <body>
-    <header class="masthead">
-      <h1>작당모의</h1>
-      <p class="status" id="status" data-connected="false">연결 중…</p>
+    <header class="topbar">
+      <div class="brand">
+        <span class="sprite logo" aria-hidden="true"><img src="sprites/mochi-0.png" alt="" /></span>
+        <h1>작당모의</h1>
+      </div>
+      <p class="status" id="status" data-connected="false">연결 중</p>
     </header>
 
+    <nav class="tabs" role="tablist" aria-label="화면">
+      <button type="button" role="tab" id="tab-room" aria-controls="panel-room" aria-selected="true">방</button>
+      <button type="button" role="tab" id="tab-me" aria-controls="panel-me" aria-selected="false">내 캐릭터</button>
+    </nav>
+
     <main>
-      <!-- Not in a room yet -->
-      <section class="card card-lobby" id="lobby" aria-labelledby="lobby-heading">
-        <h2 id="lobby-heading" class="eyebrow">방에 들어가기</h2>
-        <p class="lobby-lede">방 하나에 친구들을 초대하면, 다 같이 서로의 바탕화면 아래에 나타나요.</p>
-        <button type="button" class="go wide" id="create">새 방 만들기</button>
-        <p class="or">또는 초대 코드로</p>
-        <form id="join-form" class="send-row">
-          <label class="sr-only" for="invite">초대 코드</label>
-          <input id="invite" maxlength="7" autocomplete="off" spellcheck="false" placeholder="초대 코드 6자리" />
-          <button type="submit" class="chip-btn" id="join">들어가기</button>
-        </form>
-      </section>
-
-      <!-- In a room -->
-      <section class="card card-room" id="room" aria-labelledby="room-heading" hidden>
-        <div class="room-head">
-          <div>
-            <h2 id="room-heading" class="eyebrow">초대 코드</h2>
-            <output id="room-code" class="code">······</output>
+      <!-- 방 -->
+      <section id="panel-room" role="tabpanel" aria-labelledby="tab-room">
+        <!-- not in a room yet -->
+        <div class="lobby" id="lobby">
+          <div class="stage-strip" aria-hidden="true">
+            <span class="sprite walk"><img src="sprites/cat-1.png" alt="" /></span>
+            <span class="sprite"><img src="sprites/penguin-2.png" alt="" /></span>
+            <span class="sprite talk"><img src="sprites/mochi-0.png" alt="" /></span>
+            <span class="sprite"><img src="sprites/frog-3.png" alt="" /></span>
+            <span class="sprite"><img src="sprites/rabbit-4.png" alt="" /></span>
           </div>
-          <button type="button" id="copy" class="chip">복사</button>
+          <h2 class="lobby-title">친구들을<br />바탕화면에 초대해요</h2>
+          <p class="lobby-lede">방을 만들고 초대 코드를 단톡에 뿌리면, 다 같이 서로의 화면 아래에 나타나요.</p>
+          <button type="button" class="btn btn-primary wide" id="create">새 방 만들기</button>
+          <p class="or"><span>또는 초대 코드로</span></p>
+          <form id="join-form" class="row">
+            <label class="sr-only" for="invite">초대 코드</label>
+            <input id="invite" class="code-input" maxlength="7" autocomplete="off" spellcheck="false" placeholder="ABC123" />
+            <button type="submit" class="btn" id="join">들어가기</button>
+          </form>
         </div>
-        <ul class="members" id="members" aria-label="방 멤버"></ul>
 
-        <div class="games" role="group" aria-label="미니게임">
-          <button type="button" class="game-btn" data-game="lottery">☕ 커피 뽑기</button>
-          <button type="button" class="game-btn" data-game="rps">✊ 가위바위보</button>
-          <button type="button" class="game-btn" data-game="reaction">⚡ 반응속도</button>
-        </div>
+        <!-- in a room -->
+        <div class="room" id="room" hidden>
+          <div class="ticket">
+            <div>
+              <h2 class="label">초대 코드</h2>
+              <output id="room-code" class="ticket-code">······</output>
+            </div>
+            <button type="button" class="btn btn-small" id="copy">복사</button>
+          </div>
 
-        <ol class="chat-log" id="chat-log" aria-live="polite"></ol>
-        <form id="send-form" class="send-row">
-          <label class="sr-only" for="message">할 말</label>
-          <input id="message" maxlength="80" autocomplete="off" placeholder="다들 뭐해?" />
-          <button type="submit" class="go" id="go" aria-label="보내기">→</button>
-        </form>
-        <div class="room-foot">
-          <span class="counter" id="counter">0 / 80 · Enter로 보내기</span>
-          <button type="button" class="link" id="leave">방 나가기</button>
+          <ul class="members" id="members" aria-label="방 멤버"></ul>
+
+          <div class="games" role="group" aria-label="미니게임">
+            <button type="button" class="arcade" data-game="lottery"><span aria-hidden="true">☕</span>커피 뽑기</button>
+            <button type="button" class="arcade" data-game="rps"><span aria-hidden="true">✊</span>가위바위보</button>
+            <button type="button" class="arcade" data-game="reaction"><span aria-hidden="true">⚡</span>반응속도</button>
+          </div>
+
+          <div class="chat">
+            <ol class="chat-log" id="chat-log" aria-live="polite"></ol>
+            <form id="send-form" class="row">
+              <label class="sr-only" for="message">할 말</label>
+              <input id="message" maxlength="80" autocomplete="off" placeholder="다들 뭐해?" />
+              <button type="submit" class="btn btn-primary btn-send" id="go" aria-label="보내기">↑</button>
+            </form>
+            <div class="chat-foot">
+              <span class="counter" id="counter">0 / 80</span>
+              <button type="button" class="link" id="leave">방 나가기</button>
+            </div>
+          </div>
         </div>
       </section>
 
-      <form id="settings-form" class="settings" aria-labelledby="settings-heading">
-        <h2 id="settings-heading" class="eyebrow">내 캐릭터</h2>
+      <!-- 내 캐릭터 -->
+      <section id="panel-me" role="tabpanel" aria-labelledby="tab-me" hidden>
+        <div class="me-card">
+          <div class="me-stage">
+            <span class="sprite big talk" id="preview"><img id="preview-img" alt="내 캐릭터 미리보기" /></span>
+          </div>
+          <form id="settings-form" class="me-name">
+            <label class="label" for="name">내 이름</label>
+            <div class="row">
+              <input id="name" maxlength="12" autocomplete="off" />
+              <button type="submit" class="btn btn-small">저장</button>
+            </div>
+          </form>
+        </div>
+
+        <h2 class="label">캐릭터 고르기</h2>
         <div class="picker" id="picker" role="radiogroup" aria-label="캐릭터 고르기"></div>
-        <div class="look-row">
-          <div class="preview" id="preview"><img id="preview-img" alt="내 캐릭터 미리보기" /></div>
-          <div class="look-actions">
-            <label class="chip-btn file-btn">
-              이미지 올리기
-              <input type="file" id="avatar-file" accept="image/png" />
-            </label>
-            <button type="button" class="link" id="avatar-reset" hidden>기본 캐릭터로</button>
-            <button type="button" class="link" id="spot-reset" hidden>내 자리 원래대로</button>
-            <p class="hint">PNG · 32×32 한 장 또는 128×128 시트 · 32KB 이하</p>
-            <p class="hint">바탕화면의 내 캐릭터를 끌면 자리를 옮길 수 있어요.</p>
-          </div>
+
+        <div class="extras">
+          <label class="btn file-btn">
+            직접 그린 이미지 올리기
+            <input type="file" id="avatar-file" accept="image/png" />
+          </label>
+          <p class="hint">PNG · 32×32 한 장 또는 128×128 시트 · 32KB 이하</p>
+          <button type="button" class="link" id="avatar-reset" hidden>올린 이미지 지우고 기본 캐릭터로</button>
+          <p class="hint">바탕화면의 내 캐릭터를 끌면 자리를 옮길 수 있어요.</p>
+          <button type="button" class="link" id="spot-reset" hidden>내 자리 원래대로</button>
         </div>
-        <div class="send-row">
-          <label class="sr-only" for="name">내 이름</label>
-          <input id="name" maxlength="12" autocomplete="off" />
-          <button type="submit" class="chip-btn">이름 저장</button>
-        </div>
+
         <details id="server-box" hidden>
           <summary>개발용: 서버 주소</summary>
-          <input id="server" autocomplete="off" spellcheck="false" />
+          <div class="row">
+            <input id="server" autocomplete="off" spellcheck="false" />
+            <button type="button" class="btn btn-small" id="server-save">저장</button>
+          </div>
         </details>
-      </form>
+      </section>
 
       <p class="notice" id="notice" role="status" aria-live="polite"></p>
     </main>

@@ -40,7 +40,7 @@ const members = [
 const roomState = {
   code: ME,
   name: '동동',
-  room: { code: 'PARTY7', members },
+  room: { code: 'PARTY7', members: members.map((m) => ({ ...m, look: m.avatar || null })) },
   serverUrl: 'ws://localhost:8787',
   canEditServer: true,
   look: null,
@@ -50,10 +50,11 @@ const roomState = {
   connected: true,
   notice: '',
   chat: [
-    { mine: false, name: '민지', message: '오늘 회식 몇 시야?' },
-    { mine: true, name: '동동', message: '7시래' },
-    { mine: false, name: '하린', message: '나 좀 늦을 듯 ㅠ' },
-    { mine: true, name: '동동', message: '오케 자리 맡아둘게' },
+    { mine: false, from: 'BBQ234', name: '민지', message: '오늘 회식 몇 시야?' },
+    { mine: true, from: ME, name: '동동', message: '7시래' },
+    { mine: false, from: 'HR5522', name: '하린', message: '나 좀 늦을 듯 ㅠ' },
+    { mine: false, from: 'FX0001', name: '태오', message: '나도 늦음 ㅋㅋ 먼저 시켜' },
+    { mine: true, from: ME, name: '동동', message: '오케 자리 맡아둘게' },
   ],
 };
 let controlState = roomState;
@@ -74,11 +75,12 @@ async function save(win, name) {
   fs.writeFileSync(path.join(outDir, name), image.toPNG());
 }
 
-async function shootControl(state, name) {
+async function shootControl(state, name, tab = 'room') {
   controlState = state;
   const win = offscreen(380, 900, 'preload-control.js');
   await win.loadFile(path.join(RENDERER, 'control.html'));
-  await wait(400);
+  if (tab === 'me') await win.webContents.executeJavaScript("document.getElementById('tab-me').click()");
+  await wait(600);
   await save(win, name);
 }
 
@@ -149,6 +151,7 @@ app.whenReady().then(async () => {
   roomState.chat = [...roomState.chat, { system: true, message: '☕ 오늘 커피는 하린!' }];
   await shootControl(roomState, 'control-room.png');
   await shootControl({ ...roomState, room: null, chat: [] }, 'control-lobby.png');
+  await shootControl({ ...roomState, hasSpot: true }, 'control-me.png', 'me');
 
   const page = path.join(__dirname, '..', 'web', 'index.html');
   for (const [w, h, name] of [[1200, 900, 'web-desktop.png'], [390, 1400, 'web-phone.png']]) {

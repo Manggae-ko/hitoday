@@ -124,3 +124,11 @@ A에서 "새 방 만들기" → 초대 코드를 B에 입력하면 둘이 같은
 - 반응속도 게임은 서버까지 가는 인터넷 속도 차이가 조금 섞여요.
 - 앱 서명·공증이 아직 안 돼 있어요 (맥은 Apple 개발자 계정, 연 $99).
 - 앱 아이콘이 아직 Electron 기본 아이콘이에요.
+
+## 라이선스
+
+- **코드**: [PolyForm Noncommercial 1.0.0](LICENSE). 비상업적 용도(공부, 개인 사용, 연구 등)로는 자유롭게 쓸 수 있고, 상업적으로 쓰려면 허락이 필요해요.
+- **캐릭터·그림·디자인**: All rights reserved. [LICENSE-ASSETS.md](LICENSE-ASSETS.md)
+- **외부 저작물**(갈무리 폰트 등): [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)
+
+© 2026 donghyeun02

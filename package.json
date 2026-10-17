@@ -36,7 +36,10 @@
       "src/**",
       "shared/**",
       "assets/**",
-      "package.json"
+      "package.json",
+      "LICENSE",
+      "LICENSE-ASSETS.md",
+      "THIRD_PARTY_NOTICES.md"
     ],
     "mac": {
       "target": [
@@ -68,5 +71,7 @@
     "publish": {
       "provider": "github"
     }
-  }
+  },
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "donghyeun02"
 }

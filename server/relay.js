@@ -45,6 +45,7 @@ function createRelay({
         return {
           code,
           name: m.name,
+          character: m.character,
           color: m.color,
           online: online.has(code),
           avatar: avatar ? avatar.version : null,
@@ -85,9 +86,9 @@ function createRelay({
   }
 
   /** Puts a user in a room. Returns an error reason, or null on success. */
-  function enterRoom(user, name, roomCode, { create }) {
+  function enterRoom(user, { name, character }, roomCode, { create }) {
     if (roomOf.get(user) === roomCode && rooms.has(roomCode)) {
-      rooms.get(roomCode).members.get(user).name = name;
+      Object.assign(rooms.get(roomCode).members.get(user), { name, character });
       broadcastState(roomCode);
       return null;
     }
@@ -103,7 +104,7 @@ function createRelay({
     const taken = new Set([...room.members.values()].map((m) => m.color));
     let color = 0;
     while (taken.has(color)) color += 1;
-    room.members.set(user, { name, joinedAt: now(), color });
+    room.members.set(user, { name, character, joinedAt: now(), color });
     roomOf.set(user, roomCode);
     broadcastState(roomCode);
     return null;
@@ -112,12 +113,12 @@ function createRelay({
   function handleHello(ws, msg) {
     const previous = online.get(msg.code);
     if (previous && previous !== ws) previous.close(4000, 'replaced');
-    ws.user = { code: msg.code, name: msg.name };
+    ws.user = { code: msg.code, name: msg.name, character: msg.character };
     online.set(msg.code, ws);
     send(ws, { type: 'welcome', code: msg.code });
     // Rejoin (or rebuild after a server restart) the room this app was in.
     const roomCode = roomOf.get(msg.code) || msg.room;
-    if (roomCode && enterRoom(msg.code, msg.name, roomCode, { create: true }) === null) return;
+    if (roomCode && enterRoom(msg.code, ws.user, roomCode, { create: true }) === null) return;
     send(ws, { type: 'left-room' });
   }
 
@@ -135,11 +136,11 @@ function createRelay({
 
   const HANDLERS = {
     'create-room': (ws) => {
-      const reason = enterRoom(ws.user.code, ws.user.name, newRoomCode(), { create: true });
+      const reason = enterRoom(ws.user.code, ws.user, newRoomCode(), { create: true });
       if (reason) send(ws, { type: 'error', reason });
     },
     'join-room': (ws, msg) => {
-      const reason = enterRoom(ws.user.code, ws.user.name, msg.room, { create: false });
+      const reason = enterRoom(ws.user.code, ws.user, msg.room, { create: false });
       if (reason) send(ws, { type: 'error', reason });
     },
     'leave-room': (ws) => {

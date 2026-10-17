@@ -2,6 +2,7 @@
 
 const WebSocket = require('ws');
 const { isAvatarVersion } = require('../../shared/avatar');
+const { isCharacter, DEFAULT_CHARACTER } = require('../../shared/characters');
 const {
   isCode, cleanText, MAX_NAME_LENGTH, MAX_MESSAGE_LENGTH, MAX_ROOM_MEMBERS, ROOM_HISTORY, GAMES, RPS_HANDS,
 } = require('../../shared/protocol');
@@ -22,7 +23,8 @@ function parseMember(data) {
   const color = Number.isInteger(data.color) && data.color >= 0 && data.color < MAX_ROOM_MEMBERS ? data.color : null;
   const avatar = isAvatarVersion(data.avatar) ? data.avatar : null;
   const avatarKind = avatar && ['single', 'sheet'].includes(data.avatarKind) ? data.avatarKind : null;
-  return { code: data.code, name, color, online: data.online === true, avatar, avatarKind };
+  const character = isCharacter(data.character) ? data.character : DEFAULT_CHARACTER;
+  return { code: data.code, name, character, color, online: data.online === true, avatar, avatarKind };
 }
 
 function parseRoom(data) {

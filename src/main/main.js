@@ -1,6 +1,6 @@
 const path = require('node:path');
 const { app, ipcMain, clipboard } = require('electron');
-const { loadProfile, saveProfile, applyChanges, withRoom } = require('./profile');
+const { loadProfile, saveProfile, applyChanges, withRoom, withCharacter } = require('./profile');
 const { createTransport } = require('./transport');
 const { createOverlayWindow, createControlWindow } = require('./windows');
 const { createTray } = require('./tray');
@@ -10,6 +10,7 @@ const {
 const { describeGame } = require('./game-text');
 const { checkAvatar } = require('../../shared/avatar');
 const { colorFor } = require('../../shared/colors');
+const { CHARACTERS, isCharacter } = require('../../shared/characters');
 const {
   loadOwnAvatar, saveOwnAvatar, clearOwnAvatar, createAvatarCache, toLook,
 } = require('./avatars');
@@ -68,6 +69,7 @@ function publicState() {
     game,
     look: lookOf({ code: profile.code }),
     color: myColor(),
+    characters: CHARACTERS,
     canEditServer: !app.isPackaged,
   };
 }
@@ -91,8 +93,8 @@ const toChatLine = (line) => ({ mine: line.from === state.profile.code, name: li
 
 // Who's on screen: everyone in my room, or just me when I'm not in one.
 function showMembers() {
-  const { code, name } = state.profile;
-  const members = state.room ? state.room.members : [{ code, name, online: true }];
+  const { code, name, character } = state.profile;
+  const members = state.room ? state.room.members : [{ code, name, character, online: true }];
   const dressed = members.map((m) => ({ ...m, color: colorFor(m.code, m.color), avatar: lookOf(m) }));
   toOverlay('room:members', { me: code, members: dressed });
 }
@@ -172,6 +174,15 @@ function registerIpc() {
     pushState({ notice: '캐릭터를 바꿨어요.' });
     return { ok: true };
   });
+  ipcMain.handle('control:set-character', (_e, character) => {
+    if (!isCharacter(character)) return { ok: false, error: '없는 캐릭터예요.' };
+    state.profile = withCharacter(state.profile, character);
+    saveProfile(app.getPath('userData'), state.profile);
+    transport.connect(state.profile.serverUrl); // re-hello so the room sees the new character
+    showMembers();
+    pushState({ notice: '' });
+    return { ok: true };
+  });
   ipcMain.handle('control:clear-avatar', () => {
     clearOwnAvatar(app.getPath('userData'));
     state.ownAvatar = null;
@@ -209,8 +220,8 @@ function registerIpc() {
 }
 
 function helloPayload() {
-  const { code, name, room } = state.profile;
-  return { code, name, room: room || undefined };
+  const { code, name, room, character } = state.profile;
+  return { code, name, room: room || undefined, character };
 }
 
 app.whenReady().then(() => {

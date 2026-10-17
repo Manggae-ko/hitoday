@@ -21,7 +21,8 @@
 
 ### 캐릭터
 
-기본 캐릭터는 픽셀 말랑이(12색)예요. 설정 창에서 내 PNG를 올리면 같은 방 사람들한테도 그 그림으로 보여요.
+기본 캐릭터 11종(말랑이, 고양이, 강아지, 토끼, 곰, 펭귄, 병아리, 개구리, 햄스터, 유령, 여우) 중에 고를 수 있어요.
+같은 동물을 골라도 방 색깔 목도리로 구분돼요. 설정 창에서 내 PNG를 올리면 같은 방 사람들한테도 그 그림으로 보여요.
 규격, 템플릿, AI 프롬프트는 [`docs/CHARACTER_GUIDE.md`](docs/CHARACTER_GUIDE.md)에 있어요.
 
 ## 사용자
@@ -100,7 +101,9 @@ A에서 "새 방 만들기" → 초대 코드를 B에 입력하면 둘이 같은
 | `server/web.js`, `web/index.html` | 다운로드 페이지, 다운로드 링크 연결, 캐릭터 이미지 제공, `/health` |
 | `src/main/avatars.js` | 내 캐릭터 이미지 저장, 친구 이미지 내려받기 |
 | `src/renderer/games.js` | 미니게임 연출 (간판, 스포트라이트, 가위바위보 버튼, 과녁) |
-| `src/renderer/sprites/` | 기본 픽셀 캐릭터 시트 12색 (`scripts/make-sprites.js`로 생성) |
+| `src/renderer/sprites/` | 기본 캐릭터 11종 × 12색 시트 (`scripts/make-sprites.js`로 생성) |
+| `scripts/sprites/` | 픽셀 캐릭터 그리기: 공통 몸통(`draw.js`), 캐릭터별 특징(`species.js`) |
+| `shared/characters.js` | 기본 캐릭터 목록 |
 | `build/icon.png`, `assets/tray*.png` | 앱 아이콘(1024px)과 메뉴바 아이콘 (`scripts/make-icons.js`로 생성) |
 | `docs/CHARACTER_GUIDE.md` | 캐릭터 규격, 템플릿, AI 이미지 프롬프트 |
 | `src/main/` | Electron 메인: 프로필 저장, 서버 연결, 창·트레이, 자동 실행 |

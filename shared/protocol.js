@@ -5,6 +5,7 @@
 // and everyone in the room sees everyone's character along the bottom of their screen.
 
 const { checkAvatar, decodeBase64 } = require('./avatar');
+const { isCharacter, DEFAULT_CHARACTER } = require('./characters');
 
 const CODE_PATTERN = /^[A-Z0-9]{6}$/;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -43,7 +44,8 @@ function parseHello(data) {
   if (!name) return fail('bad-name');
   // room: the room this app was in last time, so rooms survive a server restart.
   const room = isCode(data.room) ? data.room : null;
-  return pass({ type: 'hello', code: data.code, name, room });
+  const character = isCharacter(data.character) ? data.character : DEFAULT_CHARACTER;
+  return pass({ type: 'hello', code: data.code, name, room, character });
 }
 
 function parseJoin(data) {

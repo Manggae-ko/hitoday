@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { makeCode, isCode, cleanText, MAX_NAME_LENGTH } = require('../../shared/protocol');
+const { isCharacter, DEFAULT_CHARACTER } = require('../../shared/characters');
 
 const FILE_NAME = 'profile.json';
 // Installers ship with the server from package.json ("jakdang.server"), so users never type it.
@@ -48,6 +49,7 @@ function loadProfile(dir) {
     code,
     name: storedName && storedName !== OLD_DEFAULT_NAME ? storedName : defaultName(code),
     room: isCode(stored.room) ? stored.room : '',
+    character: isCharacter(stored.character) ? stored.character : DEFAULT_CHARACTER,
     serverUrl: isServerUrl(stored.serverUrl) ? stored.serverUrl : DEFAULT_SERVER,
   };
   saveProfile(dir, profile);
@@ -64,5 +66,6 @@ function applyChanges(profile, changes) {
 }
 
 const withRoom = (profile, room) => ({ ...profile, room: isCode(room) ? room : '' });
+const withCharacter = (profile, character) => (isCharacter(character) ? { ...profile, character } : profile);
 
-module.exports = { loadProfile, saveProfile, applyChanges, withRoom };
+module.exports = { loadProfile, saveProfile, applyChanges, withRoom, withCharacter };

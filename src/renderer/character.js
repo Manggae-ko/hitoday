@@ -9,9 +9,11 @@
 const ROOM_COLORS = 12;
 const colorFor = (_code, color) => (Number.isInteger(color) ? Math.abs(color) % ROOM_COLORS : 0);
 
-const defaultSheet = (color) => `sprites/mochi-${color}.png`;
+// Built-in character ids (same list as shared/characters.js); unknown ids fall back to mochi.
+const CHARACTER_IDS = ['mochi', 'cat', 'dog', 'rabbit', 'bear', 'penguin', 'chick', 'frog', 'hamster', 'ghost', 'fox'];
+const defaultSheet = (character, color) => `sprites/${CHARACTER_IDS.includes(character) ? character : 'mochi'}-${color}.png`;
 
-function createCharacter({ name, color, avatar }) {
+function createCharacter({ name, color, avatar, character }) {
   const root = document.createElement('div');
   root.className = 'char interactive';
 
@@ -33,13 +35,13 @@ function createCharacter({ name, color, avatar }) {
 
   root.append(bubble, tag, figure);
 
-  /** avatar: { url, single } for an uploaded image, or null for the built-in mochi. */
-  function setLook(nextColor, nextAvatar) {
-    const src = nextAvatar ? nextAvatar.url : defaultSheet(nextColor);
+  /** avatar: { url, single } for an uploaded image, or null for the built-in character. */
+  function setLook(nextColor, nextAvatar, nextCharacter) {
+    const src = nextAvatar ? nextAvatar.url : defaultSheet(nextCharacter, nextColor);
     if (sheet.getAttribute('src') !== src) sheet.src = src;
     figure.classList.toggle('is-single', Boolean(nextAvatar && nextAvatar.single));
   }
-  setLook(color, avatar);
+  setLook(color, avatar, character);
 
   return {
     root,

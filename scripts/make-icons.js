@@ -7,7 +7,10 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { encodePng } = require('./png');
-const { drawFrame, paletteFor, FRAMES, ROOM_HUES } = require('./make-sprites');
+const { FRAMES, ROOM_HUES, drawCharacter } = require('./sprites/draw');
+const { SPECIES } = require('./sprites/species');
+
+const drawMochi = (spec) => drawCharacter(SPECIES.mochi, spec, ROOM_HUES[0]);
 
 const GRID = 64; // the app icon is designed on a 64×64 pixel grid, then scaled ×16
 const APP_ICON_SIZE = 1024;
@@ -47,7 +50,7 @@ function bubble(x, y) {
 }
 
 function drawAppIcon() {
-  const mochi = drawFrame(FRAMES[2][0], paletteFor(ROOM_HUES[0])); // mint, talking
+  const mochi = drawMochi(FRAMES[2][0]); // mint, talking
   const offset = { x: 11, y: 26 }; // 32×32 sprite, feet near the bottom of the tile
   const logical = (x, y) => {
     const fromBubble = bubble(x, y);
@@ -62,7 +65,7 @@ function drawAppIcon() {
 
 /** Tray icon: the mochi's silhouette (macOS tints "Template" images itself). */
 function drawTray(size, rgb) {
-  const frame = drawFrame(FRAMES[0][0], paletteFor(ROOM_HUES[0]));
+  const frame = drawMochi(FRAMES[0][0]);
   const scale = 32 / size;
   return encodePng(size, size, (x, y) => {
     const filled = frame.has(`${Math.floor(x * scale)},${Math.floor(y * scale)}`);

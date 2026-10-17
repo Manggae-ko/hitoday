@@ -7,6 +7,7 @@ const path = require('node:path');
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { describeGame } = require('../src/main/game-text');
 const { encodePng } = require('./png');
+const { CHARACTERS } = require('../shared/characters');
 
 const outDir = path.resolve(process.argv[process.argv.length - 1] || 'snapshots');
 const RENDERER = path.join(__dirname, '..', 'src', 'renderer');
@@ -28,9 +29,12 @@ const customCat = encodePng(32, 32, (x, y) => {
 const catLook = { url: `data:image/png;base64,${customCat.toString('base64')}`, single: true };
 
 const members = [
-  { code: 'BBQ234', name: '민지', color: 0, online: true },
-  { code: 'ZZT789', name: '준호', color: 1, online: false },
-  { code: ME, name: '동동', color: 2, online: true },
+  { code: 'BBQ234', name: '민지', character: 'rabbit', color: 0, online: true },
+  { code: 'ZZT789', name: '준호', character: 'bear', color: 1, online: false },
+  { code: 'PG0001', name: '수아', character: 'penguin', color: 5, online: true },
+  { code: 'FX0001', name: '태오', character: 'fox', color: 6, online: true },
+  { code: 'FR0001', name: '지민', character: 'frog', color: 7, online: true },
+  { code: ME, name: '동동', character: 'cat', color: 2, online: true },
   { code: 'HR5522', name: '하린', color: 3, online: true, avatar: catLook },
 ];
 const roomState = {
@@ -41,6 +45,8 @@ const roomState = {
   canEditServer: true,
   look: null,
   color: 2,
+  character: 'cat',
+  characters: CHARACTERS,
   connected: true,
   notice: '',
   chat: [
@@ -70,7 +76,7 @@ async function save(win, name) {
 
 async function shootControl(state, name) {
   controlState = state;
-  const win = offscreen(380, 780, 'preload-control.js');
+  const win = offscreen(380, 900, 'preload-control.js');
   await win.loadFile(path.join(RENDERER, 'control.html'));
   await wait(400);
   await save(win, name);
@@ -82,7 +88,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('control:get-state', () => controlState);
   ['overlay:set-ignore', 'overlay:open-control'].forEach((c) => ipcMain.on(c, () => {}));
 
-  const overlay = offscreen(1000, 420, 'preload-overlay.js');
+  const overlay = offscreen(1200, 420, 'preload-overlay.js');
   await overlay.loadFile(path.join(RENDERER, 'overlay.html'));
   await overlay.webContents.insertCSS('html, body { background: #8fb3c9 !important; }');
   await wait(300);
@@ -92,7 +98,7 @@ app.whenReady().then(async () => {
   await save(overlay, 'room-strip.png');
 
   // A new friend joins: they walk in from the left.
-  overlay.webContents.send('room:members', { me: ME, members: [...members, { code: 'NEW222', name: '새친구', color: 4, online: true }] });
+  overlay.webContents.send('room:members', { me: ME, members: [...members, { code: 'NEW222', name: '새친구', character: 'ghost', color: 4, online: true }] });
   await wait(1_200);
   await save(overlay, 'room-join.png');
 

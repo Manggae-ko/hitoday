@@ -58,7 +58,7 @@ function createOverlayWindow() {
 function createControlWindow() {
   const region = overlayBounds();
   const width = 380;
-  const height = 780;
+  const height = Math.min(900, region.height - 40); // tall enough for picker + chat; scrolls on small screens
   const win = new BrowserWindow({
     width,
     height,

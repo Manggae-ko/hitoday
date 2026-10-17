@@ -10,9 +10,14 @@ test('makeCode produces a valid 6-char code', () => {
 });
 
 test('hello keeps a remembered room only if it is a valid code', () => {
-  assert.deepEqual(parse({ type: 'hello', code: 'ABC234', name: '동동', room: 'ROOM22' }).value,
-    { type: 'hello', code: 'ABC234', name: '동동', room: 'ROOM22' });
+  assert.deepEqual(parse({ type: 'hello', code: 'ABC234', name: '동동', room: 'ROOM22', character: 'fox' }).value,
+    { type: 'hello', code: 'ABC234', name: '동동', room: 'ROOM22', character: 'fox' });
   assert.equal(parse({ type: 'hello', code: 'ABC234', name: '동동', room: 'nope' }).value.room, null);
+});
+
+test('hello falls back to the default character for unknown ones', () => {
+  assert.equal(parse({ type: 'hello', code: 'ABC234', name: '동동', character: '../../etc' }).value.character, 'mochi');
+  assert.equal(parse({ type: 'hello', code: 'ABC234', name: '동동' }).value.character, 'mochi');
 });
 
 test('hello rejects a bad code or empty name', () => {

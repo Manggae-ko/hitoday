@@ -1,5 +1,19 @@
 # 캐릭터 만들기 가이드
 
+## 기본 캐릭터 11종
+
+설정 창 → 내 캐릭터에서 고를 수 있어요. 말랑이는 방 색깔로 몸 색이 바뀌고, 나머지 동물은 방 색깔 목도리를 둘러요.
+
+말랑이 · 고양이 · 강아지 · 토끼 · 곰 · 펭귄 · 병아리 · 개구리 · 햄스터 · 유령 · 여우
+
+![기본 캐릭터 미리보기 (가만히 · 걷기 · 말하기 · 졸기)](characters-preview.png)
+
+- 시트 파일: `src/renderer/sprites/<캐릭터>-<색 0~11>.png`
+- 모두 코드로 그려요: 공통 몸통은 `scripts/sprites/draw.js`, 캐릭터별 특징(귀, 꼬리, 배, 얼굴)은 `scripts/sprites/species.js`.
+  새 캐릭터를 추가하려면 `species.js`에 하나 더 정의하고, `shared/characters.js`와 `src/renderer/character.js`의 목록에 id를 넣은 다음 `node scripts/make-sprites.js`를 실행하면 돼요.
+
+## 직접 그린 캐릭터 올리기
+
 화면에 보이는 캐릭터 크기는 **96×96으로 고정**이에요. 그림은 32×32 픽셀로 그리고, 앱이 3배로 또렷하게 키워서 보여줘요.
 
 ## 규격

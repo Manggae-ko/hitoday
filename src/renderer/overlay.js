@@ -63,6 +63,7 @@ function createActor(member, isMe) {
     name: member.name,
     color: colorFor(member.code, member.color),
     avatar: member.avatar,
+    character: member.character,
   });
   if (isMe) character.root.classList.add('is-me');
   const zzz = document.createElement('span');
@@ -103,7 +104,7 @@ function updateLineup({ me, members }) {
     actors.set(member.code, actor);
     actor.index = index;
     actor.character.setLabel(member.name);
-    actor.character.setLook(colorFor(member.code, member.color), member.avatar);
+    actor.character.setLook(colorFor(member.code, member.color), member.avatar, member.character);
     actor.character.root.classList.toggle('is-asleep', !member.online);
     const target = slotX(index, count);
     if (isNew) {

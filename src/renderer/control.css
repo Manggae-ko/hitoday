@@ -178,6 +178,25 @@ button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 
 .settings { display: grid; gap: 8px; padding: 0 2px; }
 
+/* Built-in character picker: first frame of each sheet, crisp pixels. */
+.picker { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.picker.is-overridden { opacity: 0.5; }
+.pick {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 3px 0 2px;
+  background: var(--paper-raised);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-sm);
+}
+.pick:hover { transform: translateY(-2px); border-color: var(--line); }
+.pick[aria-checked="true"] { background: #fff4b8; border: 2px solid var(--line); box-shadow: 2px 2px 0 var(--line); }
+.pick .thumb { position: relative; width: 40px; height: 40px; overflow: hidden; }
+.pick .thumb img { position: absolute; left: 0; top: 0; width: 160px; height: 160px; image-rendering: pixelated; }
+.pick-name { font-size: 0.68rem; font-weight: 700; color: var(--ink-soft); }
+.pick[aria-checked="true"] .pick-name { color: #2b2420; }
+
 /* Character preview: first cell of the sheet at 2× (64×64), crisp pixels. */
 .look-row { display: flex; align-items: center; gap: 12px; }
 .preview {

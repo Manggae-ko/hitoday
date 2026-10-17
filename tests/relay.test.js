@@ -157,6 +157,17 @@ test('everyone in a room gets a different color, and a freed color is reused', (
     [a, b, c, d].forEach((x) => x.ws.close());
   }));
 
+test("everyone sees each member's chosen character, and a re-hello updates it", () =>
+  withRelay(async (port) => {
+    const a = connect(port);
+    await a.opened;
+    a.say({ type: 'hello', code: 'AAAAAA', name: '에이', room: 'ZOO222', character: 'penguin' });
+    assert.equal((await a.next('room')).members[0].character, 'penguin');
+    a.say({ type: 'hello', code: 'AAAAAA', name: '에이', room: 'ZOO222', character: 'frog' });
+    assert.equal((await a.next('room', (r) => r.members[0].character === 'frog')).members[0].character, 'frog');
+    a.ws.close();
+  }));
+
 test('leaving removes you for everyone', () =>
   withRelay(async (port) => {
     const a = await hello(port, 'AAAAAA', '에이', 'LEAVE2');

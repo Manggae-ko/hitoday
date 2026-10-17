@@ -27,13 +27,16 @@ const el = {
   previewImg: $('preview-img'),
   avatarFile: $('avatar-file'),
   avatarReset: $('avatar-reset'),
+  picker: $('picker'),
 };
 
 const MAX_AVATAR_BYTES = 32 * 1024;
 
-/** Shows the first frame of my character (uploaded image or built-in mochi). */
-function renderLook(look, color) {
-  const src = look ? look.url : `sprites/mochi-${color}.png`;
+const sheetFor = (character, color) => `sprites/${character}-${color}.png`;
+
+/** Shows the first frame of my character (uploaded image or the built-in one I picked). */
+function renderLook(look, color, character) {
+  const src = look ? look.url : sheetFor(character, color);
   if (el.previewImg.getAttribute('src') !== src) el.previewImg.src = src;
   el.preview.classList.toggle('is-single', Boolean(look && look.single));
   el.avatarReset.hidden = !look;
@@ -80,6 +83,32 @@ function renderChat(chat) {
   el.log.scrollTop = el.log.scrollHeight;
 }
 
+/** One thumbnail per built-in character, in my room color. */
+let pickerKey = '';
+function renderPicker({ characters = [], character, color, look }) {
+  const key = `${character}|${color}|${Boolean(look)}`;
+  if (key === pickerKey) return;
+  pickerKey = key;
+  el.picker.classList.toggle('is-overridden', Boolean(look));
+  el.picker.replaceChildren(...characters.map(({ id, name }) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'pick';
+    button.setAttribute('role', 'radio');
+    button.setAttribute('aria-checked', String(id === character));
+    button.title = name;
+    const thumb = document.createElement('span');
+    thumb.className = 'thumb';
+    const img = document.createElement('img');
+    img.src = sheetFor(id, color);
+    img.alt = '';
+    thumb.append(img);
+    button.append(thumb, textItem('span', 'pick-name', name));
+    button.addEventListener('click', () => run(() => api.setCharacter(id)));
+    return button;
+  }));
+}
+
 function render(state) {
   el.status.textContent = state.connected ? '연결됨' : '연결 끊김 · 다시 시도 중';
   el.status.dataset.connected = String(state.connected);
@@ -99,7 +128,8 @@ function render(state) {
       button.title = onlineCount < 2 ? '접속한 사람이 2명 이상이어야 해요' : '';
     });
   }
-  renderLook(state.look, state.color);
+  renderLook(state.look, state.color, state.character);
+  renderPicker(state);
   if (!formFilled) {
     el.name.value = state.name;
     el.server.value = state.serverUrl;

@@ -26,7 +26,9 @@ test('download buttons redirect to the latest GitHub release asset', () =>
   withRelay({ repo: 'dong/jakdang' }, async (base) => {
     const mac = await fetch(`${base}/download/mac`, { redirect: 'manual' });
     assert.equal(mac.status, 302);
-    assert.equal(mac.headers.get('location'), 'https://github.com/dong/jakdang/releases/latest/download/Jakdang-mac.dmg');
+    assert.equal(mac.headers.get('location'), 'https://github.com/dong/jakdang/releases/latest/download/Jakdang-mac-arm64.dmg');
+    const intel = await fetch(`${base}/download/mac-intel`, { redirect: 'manual' });
+    assert.equal(intel.headers.get('location'), 'https://github.com/dong/jakdang/releases/latest/download/Jakdang-mac-x64.dmg');
     const win = await fetch(`${base}/download/win`, { redirect: 'manual' });
     assert.equal(win.headers.get('location'), 'https://github.com/dong/jakdang/releases/latest/download/Jakdang-Setup.exe');
   }));

@@ -28,7 +28,6 @@ const SPECIES = {
   mochi: {
     palette: (hue) => ({ body: hsl(hue, 70, 89), shade: hsl(hue, 42, 74), light: hsl(hue, 85, 96) }),
     ears: roundEars(2.6),
-    scarf: false, // mochi is made of its room color
   },
 
   cat: {
@@ -160,7 +159,6 @@ const SPECIES = {
     body: { cy: 18, ry: 10.5 },
     hover: -1,
     noFeet: true,
-    scarf: true,
     // Scalloped hem instead of feet.
     bodyShape: (g) => (x, y) => {
       if (!ellipse(g.cx, g.cy, g.rx, g.ry)(x, y) && !(y > g.cy && y < g.cy + g.ry + 1.5 && Math.abs(x + 0.5 - g.cx) <= g.rx - 0.5)) return false;

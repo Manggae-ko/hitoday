@@ -2,7 +2,7 @@
 // body plan (round body, little arms and feet, face one pixel right of center
 // because they face right); species add ears, tails, bellies and faces on top.
 
-const { hsl, ellipse } = require('./pixel');
+const { ellipse } = require('./pixel');
 
 const CELL = 32;
 const INK = [43, 36, 32, 255];
@@ -25,8 +25,6 @@ const FRAMES = [
   // sleep: eyes shut, squashed, slow breathe
   [{ eyes: 'closed', mouth: 'flat', squash: 1.2 }, { eyes: 'closed', mouth: 'flat', squash: 1.8 }],
 ];
-
-const seatColors = (hue) => ({ main: hsl(hue, 75, 62), dark: hsl(hue, 60, 46) });
 
 /** Body fill with a light top-left and a shaded bottom-right. */
 const shadedBody = (g, pal) => (x, y) => {
@@ -56,7 +54,7 @@ function defaultFace(put, g, s, opts = {}) {
 /**
  * @param kind     a species definition (see species.js)
  * @param spec     one frame from FRAMES
- * @param seatHue  the room color: animals wear it as a scarf, mochi is made of it
+ * @param seatHue  the room color (only mochi uses it; animals keep their own colors)
  * @returns Map of "x,y" -> [r, g, b, a]
  */
 function drawCharacter(kind, spec, seatHue) {
@@ -67,7 +65,6 @@ function drawCharacter(kind, spec, seatHue) {
   const cy = body.cy + dy + s.squash; // keep the bottom on the ground while squashing
   const g = { cx: 16, cy, rx: body.rx, ry, dy, top: cy - ry, fy: Math.round(cy - 1) };
   const pal = kind.palette(seatHue);
-  const seat = seatColors(seatHue);
 
   // Layers paint back to front. "inside" layers only recolor pixels that are already filled,
   // so bellies and scarves never change the silhouette.
@@ -82,11 +79,6 @@ function drawCharacter(kind, spec, seatHue) {
   if (kind.ears) kind.ears(add, g, pal, s);
   add(kind.bodyShape ? kind.bodyShape(g) : ellipse(g.cx, g.cy, g.rx, g.ry), shadedBody(g, pal));
   if (kind.front) kind.front(add, g, pal, s);
-  if (kind.scarf !== false) {
-    const sy = Math.round(g.cy + g.ry * 0.5);
-    add((x, y) => y === sy, seat.main, true);
-    add((x, y) => y === sy + 1, seat.dark, true);
-  }
 
   const pixels = new Map();
   for (let y = 0; y < CELL; y += 1) {

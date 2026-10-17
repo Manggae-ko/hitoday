@@ -1,0 +1,40 @@
+# Production: the relay behind Caddy, which gets and renews the HTTPS certificate.
+# On the server:  cd deploy && cp .env.example .env  (fill it in)  &&  docker compose up -d --build
+services:
+  relay:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    environment:
+      GITHUB_REPO: ${GITHUB_REPO:-}
+    volumes:
+      - relay-data:/data
+    expose:
+      - "8787"
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    depends_on:
+      - relay
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in deploy/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  relay-data:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,11 @@
+# Caddy gets a Let's Encrypt certificate for $DOMAIN automatically and renews it.
+# WebSocket upgrades (wss://) are proxied as-is.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy relay:8787
+	header Strict-Transport-Security "max-age=31536000"
+	log {
+		output stdout
+		format console
+	}
+}

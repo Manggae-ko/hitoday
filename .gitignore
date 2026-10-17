@@ -4,3 +4,4 @@ dist/
 .claude/
 snapshots/
 data/
+deploy/.env

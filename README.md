@@ -44,17 +44,18 @@
 
 ### 1. 서버 띄우기
 
-서버 하나가 방 중계와 다운로드 페이지를 같이 맡아요.
+서버 하나가 방 중계, 다운로드 페이지, 기기 인증을 같이 맡아요. 운영 주소는 `jakdang.naegoworks.com`이에요.
 
-- **Render (무료로 시작)**: render.com → New → Blueprint → 이 저장소 선택. `render.yaml`대로 올라가요.
-  무료 플랜은 한동안 접속이 없으면 잠들어서, 첫 연결에 30초쯤 걸릴 수 있어요.
-- **직접 서버 (EC2·Lightsail 등)**: `docker build -f server/Dockerfile -t jakdang-relay .` → `docker run -p 8787:8787 -e GITHUB_REPO=내아이디/jakdang jakdang-relay`.
-  앞에 HTTPS(wss) 프록시(Caddy·nginx)를 두세요.
+- **네이버클라우드 (현재 계획)**: 단계별 가이드는 [`docs/DEPLOY_NCLOUD.md`](docs/DEPLOY_NCLOUD.md).
+  `deploy/`의 Docker Compose가 서버와 Caddy(자동 HTTPS)를 같이 띄워요.
+- **다른 곳 (EC2·Lightsail 등)**: 같은 `deploy/` 구성을 그대로 쓰면 돼요.
+- **Render 무료 체험**: `render.yaml` 사용. 한동안 접속이 없으면 잠들고, 디스크가 없어서 기기 키가 재시작 때 초기화돼요.
 
 | 환경변수 | 설명 |
 | --- | --- |
 | `PORT` | 기본 8787 |
 | `GITHUB_REPO` | `내아이디/jakdang`. 다운로드 버튼이 이 저장소의 최신 Release로 연결돼요. |
+| `DATA_DIR` | 기기 키 해시 저장 위치 (Docker에서는 `/data` 볼륨) |
 
 확인: `https://<서버주소>/health`가 `ok`, `https://<서버주소>/`가 다운로드 페이지.
 
@@ -111,10 +112,13 @@ A에서 "새 방 만들기" → 초대 코드를 B에 입력하면 둘이 같은
 | `src/renderer/control.*` | 방 만들기·들어가기, 초대 코드, 멤버, 대화 |
 | `scripts/snapshot.js` | 화면을 띄우지 않고 렌더링해서 PNG로 저장 (`npm run snapshot -- <폴더>`) |
 | `.github/workflows/release.yml` | 태그를 푸시하면 맥·윈도우 설치 파일을 빌드해서 Releases에 올림 |
+| `.github/workflows/deploy.yml` | main에 서버 코드를 푸시하면 테스트 후 서버에 자동 배포 |
+| `deploy/` | 운영 서버 구성: Docker Compose, Caddy, 서버 준비 스크립트 |
+| `server/device-keys.js` | 기기 인증 (처음 접속한 기기만 그 코드를 쓸 수 있음) |
+| `scripts/load-test.js` | 부하 테스트 (`npm run load-test -- 5000`) |
 
 ## 아직 안 된 것
 
-- 내 코드를 아는 사람은 나인 척 접속할 수 있어요. 공개 배포 전에 기기별 비밀 키를 붙여야 해요.
 - 방은 한 번에 하나만 들어갈 수 있어요.
 - 대화 기록은 서버 메모리에만 있어요 (방마다 최근 30개). 캐릭터 이미지도 메모리에만 있지만, 앱이 접속할 때마다 다시 보내요.
 - 반응속도 게임은 서버까지 가는 인터넷 속도 차이가 조금 섞여요.

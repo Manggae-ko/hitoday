@@ -8,7 +8,9 @@ COPY server/*.js ./server/
 COPY web ./web
 # Device-key hashes live here; mount a volume so they survive redeploys.
 RUN mkdir -p /data && chown node:node /data
-ENV PORT=8787 DATA_DIR=/data
+# Which commit is running, reported at /version (set by deploy/auto-update.sh).
+ARG GIT_COMMIT=unknown
+ENV PORT=8787 DATA_DIR=/data GIT_COMMIT=$GIT_COMMIT
 EXPOSE 8787
 USER node
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 CMD wget -qO- http://127.0.0.1:8787/health || exit 1

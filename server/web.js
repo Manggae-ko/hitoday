@@ -111,6 +111,9 @@ function createWebHandler({
 
     if (req.method !== 'GET' && req.method !== 'HEAD') return reply(405, { allow: 'GET, HEAD' }, '');
     if (pathname === '/health') return reply(200, { 'content-type': 'text/plain' }, 'ok');
+    if (pathname === '/version') {
+      return reply(200, { 'content-type': 'text/plain', 'cache-control': 'no-store' }, process.env.GIT_COMMIT || 'unknown');
+    }
     if (pathname === '/') {
       if (req.method === 'GET') stats.record('page_view');
       const { html, nonce } = renderPage();

@@ -93,20 +93,20 @@ GitHub 저장소 → Settings → Secrets and variables → Actions → **Variab
 
 그다음 태그를 올리면(`git tag v0.1.0 && git push origin v0.1.0`) 이 주소가 들어간 맥·윈도우 설치 파일이 만들어져요.
 
-## 6. 자동 배포 (선택)
+## 6. 자동 배포
 
-main에 서버 코드가 푸시되면 테스트 → 서버에서 자동으로 새 버전 실행.
+서버가 **2분마다 GitHub를 확인해서 새 커밋이 있으면 스스로 업데이트**해요. 밖에서 서버로 들어올 필요가 없어서 SSH(22번)는 내 IP에만 열어둔 채로 쓸 수 있어요.
 
-1. 배포용 SSH 키 만들기 (내 컴퓨터에서)
-   ```bash
-   ssh-keygen -t ed25519 -f ~/.ssh/jakdang_deploy -N ""
-   ssh-copy-id -i ~/.ssh/jakdang_deploy.pub root@<공인 IP>
-   ```
-2. GitHub 저장소 → Settings → Secrets and variables → Actions → **Secrets**
-   - `DEPLOY_HOST` = 공인 IP
-   - `DEPLOY_USER` = `root`
-   - `DEPLOY_SSH_KEY` = `~/.ssh/jakdang_deploy` 파일 내용 전체
-3. 비공개 저장소라면 서버에서 `git pull`이 되도록 서버에 [deploy key](https://docs.github.com/ko/authentication/connecting-to-github-with-ssh/managing-deploy-keys)를 등록하세요.
+서버에서 한 번만:
+```bash
+cd ~/jakdang && git pull
+bash ~/jakdang/deploy/install-auto-update.sh
+```
+
+- 업데이트 기록: `tail -f /var/log/jakdang-update.log`
+- 지금 돌아가는 커밋: `https://jakdang.naegoworks.com/version`
+- GitHub Actions의 `deploy`는 테스트를 돌린 뒤, 서버의 `/version`이 새 커밋으로 바뀔 때까지 기다려서 배포가 됐는지 확인해요.
+- GitHub에서 서버로 SSH 접속하는 방식은 쓰지 않아요. `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` 시크릿은 지워도 돼요.
 
 ## 7. 통계 보기
 
@@ -123,7 +123,7 @@ main에 서버 코드가 푸시되면 테스트 → 서버에서 자동으로 �
 
 ## 운영 메모
 
-- **업데이트**: `cd ~/jakdang && git pull && cd deploy && docker compose up -d --build`
+- **바로 업데이트**: `bash ~/jakdang/deploy/auto-update.sh` (새 커밋이 있을 때만 다시 빌드해요)
 - **재시작해도 유지되는 것**: 기기 키(누가 어떤 코드의 주인인지), HTTPS 인증서
 - **재시작하면 사라지는 것**: 대화 기록(방마다 최근 30개). 방과 캐릭터 이미지는 앱이 다시 접속하면서 복구돼요.
 - **용량 감**: 로컬 부하 테스트에서 동시 접속 5,000명이 메모리 약 110MB, CPU 한 코어의 9% 정도였어요 (`npm run load-test -- 5000`). Micro(1GB)로 충분하고, 늘어나면 서버 사양만 올리면 돼요.

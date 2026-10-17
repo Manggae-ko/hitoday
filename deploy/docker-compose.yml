@@ -5,6 +5,8 @@ services:
     build:
       context: ..
       dockerfile: server/Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
     restart: unless-stopped
     environment:
       GITHUB_REPO: ${GITHUB_REPO:-}

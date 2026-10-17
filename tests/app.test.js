@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { keyFor } = require('./helpers');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -102,7 +103,7 @@ test('three app transports share a room through the relay', async () => {
   const makeClient = (code, name, room) => {
     const inbox = [];
     const transport = createTransport({
-      getHello: () => ({ code, name, room }),
+      getHello: () => ({ code, key: keyFor(code), name, room }),
       onMessage: (msg) => inbox.push(msg),
       onStatus: () => {},
     });

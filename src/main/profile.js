@@ -3,7 +3,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { makeCode, isCode, cleanText, spotOrNull, MAX_NAME_LENGTH } = require('../../shared/protocol');
+const {
+  makeCode, isCode, cleanText, spotOrNull, isDeviceKey, MAX_NAME_LENGTH,
+} = require('../../shared/protocol');
 const { isCharacter, DEFAULT_CHARACTER } = require('../../shared/characters');
 
 const FILE_NAME = 'profile.json';
@@ -44,9 +46,12 @@ function saveProfile(dir, profile) {
 function loadProfile(dir) {
   const stored = readJson(path.join(dir, FILE_NAME)) || {};
   const code = isCode(stored.code) ? stored.code : makeCode((n) => crypto.randomInt(n));
+  // This install's secret: proves to the server that this code is mine. Never shown or shared.
+  const key = isDeviceKey(stored.key) && isCode(stored.code) ? stored.key : crypto.randomBytes(32).toString('base64url');
   const storedName = cleanText(stored.name, MAX_NAME_LENGTH);
   const profile = {
     code,
+    key,
     name: storedName && storedName !== OLD_DEFAULT_NAME ? storedName : defaultName(code),
     room: isCode(stored.room) ? stored.room : '',
     character: isCharacter(stored.character) ? stored.character : DEFAULT_CHARACTER,
@@ -70,4 +75,14 @@ const withRoom = (profile, room) => ({ ...profile, room: isCode(room) ? room : '
 const withCharacter = (profile, character) => (isCharacter(character) ? { ...profile, character } : profile);
 const withSpot = (profile, x) => ({ ...profile, x: spotOrNull(x) });
 
-module.exports = { loadProfile, saveProfile, applyChanges, withRoom, withCharacter, withSpot };
+/** A brand-new identity (new code + key), for when the server says my code belongs to another device. */
+const withNewIdentity = (profile) => ({
+  ...profile,
+  code: makeCode((n) => crypto.randomInt(n)),
+  key: crypto.randomBytes(32).toString('base64url'),
+  room: '',
+});
+
+module.exports = {
+  loadProfile, saveProfile, applyChanges, withRoom, withCharacter, withSpot, withNewIdentity,
+};

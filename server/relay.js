@@ -2,11 +2,13 @@
 // who's online, and what they say. It never sees anyone's screen.
 
 const http = require('node:http');
+const path = require('node:path');
 const crypto = require('node:crypto');
 const { WebSocketServer } = require('ws');
 const { parseClientMessage, makeCode, MAX_ROOM_MEMBERS, ROOM_HISTORY } = require('../shared/protocol');
 const { createWebHandler } = require('./web');
 const { createGameHost } = require('./game-host');
+const { createDeviceKeys } = require('./device-keys');
 
 const MIN_SAY_INTERVAL_MS = 800; // fast enough to chat, slow enough to stop spam
 const MAX_PAYLOAD_BYTES = 64 * 1024; // room for one base64 character image
@@ -26,6 +28,7 @@ function createRelay({
   repo,
   randomInt = (n) => crypto.randomInt(n),
   gameTimings,
+  dataDir, // where device-key hashes are kept; omit to keep them in memory only
 } = {}) {
   const online = new Map(); // user code -> ws
   const rooms = new Map(); // room code -> { members: Map(user code -> { name, joinedAt }), history: [] }
@@ -36,6 +39,7 @@ function createRelay({
   const lastMoveAt = new Map(); // user code -> timestamp
   const pendingMoves = new Map(); // user code -> timer for a held-back move
 
+  const deviceKeys = createDeviceKeys({ file: dataDir && path.join(dataDir, 'device-keys.json'), log });
   const httpServer = http.createServer(createWebHandler({ repo, avatars }));
   const wss = new WebSocketServer({ server: httpServer, maxPayload: MAX_PAYLOAD_BYTES });
 
@@ -115,6 +119,13 @@ function createRelay({
   }
 
   function handleHello(ws, msg) {
+    // Only the device that first used this code may sign in as it.
+    const verdict = deviceKeys.check(msg.code, msg.key);
+    if (verdict === 'bad-key' || verdict === 'server-full') {
+      send(ws, { type: 'error', reason: verdict });
+      ws.close(4001, verdict);
+      return;
+    }
     const previous = online.get(msg.code);
     if (previous && previous !== ws) previous.close(4000, 'replaced');
     ws.user = { code: msg.code, name: msg.name, character: msg.character, x: msg.x };
@@ -223,6 +234,7 @@ function createRelay({
     port: () => httpServer.address().port,
     close: () => new Promise((resolve) => {
       games.stopAll();
+      deviceKeys.flush();
       pendingMoves.forEach((timer) => clearTimeout(timer));
       wss.clients.forEach((c) => c.terminate());
       wss.close(() => httpServer.close(resolve));
@@ -234,6 +246,9 @@ module.exports = { createRelay, MIN_SAY_INTERVAL_MS };
 
 if (require.main === module) {
   const port = Number(process.env.PORT) || 8787;
-  const relay = createRelay({ port, log: (line) => process.stdout.write(`${line}\n`) });
+  const dataDir = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
+  const relay = createRelay({ port, dataDir, log: (line) => process.stdout.write(`${line}\n`) });
+  // Save device keys before Docker stops the container.
+  ['SIGTERM', 'SIGINT'].forEach((signal) => process.on(signal, () => relay.close().then(() => process.exit(0))));
   relay.ready.then(() => process.stdout.write(`작당모의 relay listening on :${port}\n`));
 }

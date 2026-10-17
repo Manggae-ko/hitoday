@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { keyFor } = require('./helpers');
 const WebSocket = require('ws');
 const { createRelay, MIN_SAY_INTERVAL_MS } = require('../server/relay');
 const { MAX_ROOM_MEMBERS } = require('../shared/protocol');
@@ -29,7 +30,7 @@ function connect(port) {
 async function hello(port, code, name, room) {
   const client = connect(port);
   await client.opened;
-  client.say({ type: 'hello', code, name, room });
+  client.say({ type: 'hello', code, key: keyFor(code), name, room });
   await client.next('welcome');
   return client;
 }
@@ -161,9 +162,9 @@ test("everyone sees each member's chosen character, and a re-hello updates it", 
   withRelay(async (port) => {
     const a = connect(port);
     await a.opened;
-    a.say({ type: 'hello', code: 'AAAAAA', name: '에이', room: 'ZOO222', character: 'penguin' });
+    a.say({ type: 'hello', code: 'AAAAAA', key: keyFor('AAAAAA'), name: '에이', room: 'ZOO222', character: 'penguin' });
     assert.equal((await a.next('room')).members[0].character, 'penguin');
-    a.say({ type: 'hello', code: 'AAAAAA', name: '에이', room: 'ZOO222', character: 'frog' });
+    a.say({ type: 'hello', code: 'AAAAAA', key: keyFor('AAAAAA'), name: '에이', room: 'ZOO222', character: 'frog' });
     assert.equal((await a.next('room', (r) => r.members[0].character === 'frog')).members[0].character, 'frog');
     a.ws.close();
   }));

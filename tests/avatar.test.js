@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { keyFor } = require('./helpers');
 const WebSocket = require('ws');
 const { encodePng } = require('../scripts/png');
 const { checkAvatar, decodeBase64, MAX_AVATAR_BYTES } = require('../shared/avatar');
@@ -43,7 +44,7 @@ async function client(port, code, room) {
     return new Promise((resolve) => waiters.push({ match, resolve }));
   };
   await new Promise((resolve) => ws.on('open', resolve));
-  ws.send(JSON.stringify({ type: 'hello', code, name: code, room }));
+  ws.send(JSON.stringify({ type: 'hello', code, key: keyFor(code), name: code, room }));
   await next((m) => m.type === 'room');
   return { ws, next, say: (obj) => ws.send(JSON.stringify(obj)) };
 }

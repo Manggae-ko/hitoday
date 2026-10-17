@@ -7,7 +7,7 @@
   "scripts": {
     "start": "electron .",
     "server": "node server/relay.js",
-    "test": "node --test tests/*.test.js",
+    "test": "node --test --test-timeout=20000 tests/*.test.js",
     "demo:a": "JAKDANG_PROFILE=a JAKDANG_REGION=left electron .",
     "demo:b": "JAKDANG_PROFILE=b JAKDANG_REGION=right electron .",
     "icons": "node scripts/make-icons.js",
@@ -41,7 +41,9 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["universal"]
+          "arch": [
+            "universal"
+          ]
         }
       ],
       "artifactName": "Jakdang-mac.${ext}",
@@ -52,7 +54,9 @@
       }
     },
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "nsis": {
       "artifactName": "Jakdang-Setup.${ext}",

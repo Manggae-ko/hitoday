@@ -47,14 +47,19 @@ function spotOrNull(value) {
 const fail = (error) => ({ ok: false, error });
 const pass = (value) => ({ ok: true, value });
 
+// A device key: 32 random bytes, base64url (43 characters). Generated once per install.
+const KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const isDeviceKey = (value) => typeof value === 'string' && KEY_PATTERN.test(value);
+
 function parseHello(data) {
   if (!isCode(data.code)) return fail('bad-code');
+  if (!isDeviceKey(data.key)) return fail('need-key');
   const name = cleanText(data.name, MAX_NAME_LENGTH);
   if (!name) return fail('bad-name');
   // room: the room this app was in last time, so rooms survive a server restart.
   const room = isCode(data.room) ? data.room : null;
   const character = isCharacter(data.character) ? data.character : DEFAULT_CHARACTER;
-  return pass({ type: 'hello', code: data.code, name, room, character, x: spotOrNull(data.x) });
+  return pass({ type: 'hello', code: data.code, key: data.key, name, room, character, x: spotOrNull(data.x) });
 }
 
 function parseJoin(data) {
@@ -132,5 +137,6 @@ module.exports = {
   cleanText,
   normalizeCode,
   spotOrNull,
+  isDeviceKey,
   parseClientMessage,
 };

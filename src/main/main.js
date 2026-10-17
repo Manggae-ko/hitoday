@@ -1,6 +1,8 @@
 const path = require('node:path');
 const { app, ipcMain, clipboard } = require('electron');
-const { loadProfile, saveProfile, applyChanges, withRoom, withCharacter, withSpot } = require('./profile');
+const {
+  loadProfile, saveProfile, applyChanges, withRoom, withCharacter, withSpot, withNewIdentity,
+} = require('./profile');
 const { createTransport } = require('./transport');
 const { createOverlayWindow, createControlWindow } = require('./windows');
 const { createTray } = require('./tray');
@@ -60,8 +62,9 @@ function lookOf(member) {
 
 function publicState() {
   const { profile, connected, notice, room, chat, game } = state;
+  const { key, ...visible } = profile; // the device key never leaves the main process
   return {
-    ...profile,
+    ...visible,
     connected,
     notice,
     room,
@@ -125,6 +128,12 @@ function handleServerMessage(msg) {
     if (msg.code !== state.profile.code) toOverlay('member:moved', { code: msg.code, x: msg.x });
   } else if (msg.type === 'game') {
     handleGame(msg);
+  } else if (msg.type === 'error' && msg.reason === 'bad-key') {
+    // Someone else's device already owns this code (e.g. a copied profile): start fresh.
+    state.profile = withNewIdentity(state.profile);
+    saveProfile(app.getPath('userData'), state.profile);
+    pushState({ room: null, chat: [], notice: '다른 기기에서 쓰던 코드라 새 코드를 만들었어요. 방에 다시 들어가 주세요.' });
+    transport.connect(state.profile.serverUrl);
   } else if (msg.type === 'error' && !QUIET_ERRORS.has(msg.reason)) {
     pushState({ notice: ERROR_TEXT[msg.reason] || `문제가 생겼어요 (${msg.reason})` });
   }
@@ -247,8 +256,8 @@ function registerIpc() {
 }
 
 function helloPayload() {
-  const { code, name, room, character, x } = state.profile;
-  return { code, name, room: room || undefined, character, x };
+  const { code, key, name, room, character, x } = state.profile;
+  return { code, key, name, room: room || undefined, character, x };
 }
 
 app.whenReady().then(() => {

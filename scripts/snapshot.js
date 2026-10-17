@@ -1,4 +1,5 @@
-// Renders the overlay and settings window offscreen and saves PNGs, for visual checks.
+// Renders two people's screens and the settings window offscreen and saves PNGs.
+// Scene: 동동 walked over to 민지's screen; they chat there. Each character is in one place.
 // Usage: npm run snapshot -- <out-dir>
 
 const fs = require('node:fs');
@@ -9,6 +10,8 @@ const outDir = path.resolve(process.argv[process.argv.length - 1] || 'snapshots'
 const RENDERER = path.join(__dirname, '..', 'src', 'renderer');
 const PRELOAD = path.join(__dirname, '..', 'src');
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const homeNames = new Map(); // webContents id -> name for overlay:get-home
 
 const fakeState = {
   code: 'K7QX2M',
@@ -36,6 +39,15 @@ function offscreen(width, height, preload) {
   return win;
 }
 
+async function overlayFor(name, background) {
+  const win = offscreen(800, 360, 'preload-overlay.js');
+  homeNames.set(win.webContents.id, name);
+  await win.loadFile(path.join(RENDERER, 'overlay.html'));
+  await win.webContents.insertCSS(`html, body { background: ${background} !important; }`);
+  await wait(200);
+  return win;
+}
+
 async function save(win, name) {
   const image = await win.webContents.capturePage();
   fs.writeFileSync(path.join(outDir, name), image.toPNG());
@@ -43,21 +55,32 @@ async function save(win, name) {
 
 app.whenReady().then(async () => {
   fs.mkdirSync(outDir, { recursive: true });
-  ipcMain.handle('overlay:get-home', () => ({ name: '동동' }));
+  const CODES = { 동동: 'K7QX2M', 민지: 'BBQ234' };
+  ipcMain.handle('overlay:get-home', (e) => {
+    const name = homeNames.get(e.sender.id) || '말랑';
+    return { name, code: CODES[name] || 'AAAAAA' };
+  });
   ipcMain.handle('control:get-state', () => fakeState);
   ['overlay:set-ignore', 'overlay:open-control'].forEach((c) => ipcMain.on(c, () => {}));
 
-  const overlay = offscreen(1000, 380, 'preload-overlay.js');
-  await overlay.loadFile(path.join(RENDERER, 'overlay.html'));
-  await overlay.webContents.insertCSS('html, body { background: #8fb3c9 !important; }');
-  overlay.webContents.send('home:says', { message: '뭐해?' });
-  overlay.webContents.send('guest:says', { from: 'BBQ234', fromName: '민지', message: '방금 퇴근함 ㅎㅎ' });
-  await wait(1_000);
-  overlay.webContents.send('guest:says', { from: 'ZZT789', fromName: '준호', message: '나도 낄래' });
-  await wait(4_200);
-  await save(overlay, 'overlay-chat.png');
+  const dongdong = await overlayFor('동동', '#8fb3c9');
+  const minji = await overlayFor('민지', '#b7c99a');
 
-  const control = offscreen(380, 700, 'preload-control.js');
+  // 동동 opens a visit: leaves his screen, arrives on 민지's.
+  dongdong.webContents.send('me:go', { friendName: '민지' });
+  dongdong.webContents.send('edge:line', { mine: true, name: '동동', message: '뭐해?' });
+  minji.webContents.send('guest:says', { from: 'K7QX2M', fromName: '동동', message: '뭐해?' });
+  await wait(4_500);
+
+  // 민지 replies at home.
+  minji.webContents.send('home:says', { message: '방금 퇴근함 ㅎㅎ' });
+  dongdong.webContents.send('edge:line', { mine: false, name: '민지', message: '방금 퇴근함 ㅎㅎ' });
+  await wait(600);
+
+  await save(dongdong, 'screen-visitor.png');
+  await save(minji, 'screen-host.png');
+
+  const control = offscreen(380, 740, 'preload-control.js');
   await control.loadFile(path.join(RENDERER, 'control.html'));
   await wait(400);
   await save(control, 'control.png');

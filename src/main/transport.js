@@ -20,11 +20,12 @@ function parseServerMessage(raw) {
       const fromName = cleanText(data.fromName, MAX_NAME_LENGTH);
       const message = cleanText(data.message, MAX_MESSAGE_LENGTH);
       if (!isCode(data.from) || !fromName || !message) return null;
-      return { type: 'visit', from: data.from, fromName, message };
+      return { type: 'visit', from: data.from, fromName, message, opens: data.opens === true, late: data.late === true };
     }
     case 'visit-sent': {
       const message = cleanText(data.message, MAX_MESSAGE_LENGTH);
-      return message ? { type: 'visit-sent', message, queued: Boolean(data.queued) } : null;
+      if (!message) return null;
+      return { type: 'visit-sent', message, opens: data.opens === true, queued: data.queued === true };
     }
     case 'error':
       return { type: 'error', reason: String(data.reason || 'unknown') };

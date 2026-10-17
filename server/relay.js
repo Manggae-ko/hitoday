@@ -32,7 +32,8 @@ function createRelay({ port = 8787, now = Date.now, log = () => {} } = {}) {
   function flushQueue(code, ws) {
     const fresh = (queues.get(code) || []).filter((v) => now() - v.sentAt < QUEUE_TTL_MS);
     queues.delete(code);
-    fresh.forEach((visit) => send(ws, visit));
+    // late: left while they were offline, so it shows as a note, not a visit.
+    fresh.forEach((visit) => send(ws, { ...visit, late: true }));
   }
 
   function enqueue(code, visit) {
@@ -60,11 +61,12 @@ function createRelay({ port = 8787, now = Date.now, log = () => {} } = {}) {
     if (accepted && !accepted.has(from)) return send(ws, { type: 'error', reason: 'not-friends' });
 
     lastVisitAt.set(from, now());
-    const visit = { type: 'visit', from, fromName: ws.user.name, message: msg.message, sentAt: now() };
+    const { message, opens } = msg;
+    const visit = { type: 'visit', from, fromName: ws.user.name, message, opens, sentAt: now() };
     const target = online.get(msg.to);
     if (target) send(target, visit);
     else enqueue(msg.to, visit);
-    send(ws, { type: 'visit-sent', to: msg.to, message: msg.message, queued: !target });
+    send(ws, { type: 'visit-sent', to: msg.to, message, opens, queued: !target });
   }
 
   const HANDLERS = { visit: handleVisit };

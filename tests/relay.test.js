@@ -46,10 +46,13 @@ test('friends can talk both ways and the sender gets an echo', () =>
     const a = await hello(port, 'AAAAAA', '에이', ['BBBBBB']);
     const b = await hello(port, 'BBBBBB', '비', ['AAAAAA']);
 
-    a.say({ type: 'visit', to: 'BBBBBB', message: '뭐해?' });
+    a.say({ type: 'visit', to: 'BBBBBB', message: '뭐해?', opens: true });
     const toB = await b.next('visit');
-    assert.deepEqual([toB.from, toB.fromName, toB.message], ['AAAAAA', '에이', '뭐해?']);
-    assert.deepEqual(await a.next('visit-sent'), { type: 'visit-sent', to: 'BBBBBB', message: '뭐해?', queued: false });
+    assert.deepEqual([toB.from, toB.fromName, toB.message, toB.opens], ['AAAAAA', '에이', '뭐해?', true]);
+    assert.equal(toB.late, undefined);
+    assert.deepEqual(await a.next('visit-sent'), {
+      type: 'visit-sent', to: 'BBBBBB', message: '뭐해?', opens: true, queued: false,
+    });
 
     b.say({ type: 'visit', to: 'AAAAAA', message: '밥 먹는 중' });
     const toA = await a.next('visit');
@@ -65,7 +68,9 @@ test('queues a visit while the friend is offline and delivers it on hello', () =
     assert.equal((await a.next('visit-sent')).queued, true);
 
     const b = await hello(port, 'BBBBBB', '비', ['AAAAAA']);
-    assert.equal((await b.next('visit')).message, '없을 때 왔다감');
+    const note = await b.next('visit');
+    assert.equal(note.message, '없을 때 왔다감');
+    assert.equal(note.late, true);
     a.ws.close();
     b.ws.close();
   }));

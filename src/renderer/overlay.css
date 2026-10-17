@@ -121,6 +121,69 @@ body {
 .is-home.is-talking .bubble { transform: translate(0, 0) scale(1); }
 .is-home .bubble::after { left: 70%; }
 
+/* Little wooden sign left at my spot while my character is out visiting. */
+.sign {
+  position: absolute;
+  right: 36px;
+  bottom: 8px;
+  padding: 6px 12px 7px;
+  font-size: var(--text-sm);
+  font-weight: 800;
+  color: #3a2614;
+  background: #e9c79a;
+  border: 2px solid #2b2420;
+  border-radius: 6px;
+  box-shadow: 3px 3px 0 #2b2420;
+  rotate: -3deg;
+}
+.sign::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  width: 6px;
+  height: 10px;
+  background: #b48a5a;
+  border: 2px solid #2b2420;
+  border-top: 0;
+  translate: -50% 0;
+}
+
+/* While I'm visiting, the conversation is heard "through the wall" at my edge. */
+.edge-chat {
+  position: absolute;
+  right: 12px;
+  bottom: 70px;
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  max-width: 260px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+.edge-line {
+  display: grid;
+  gap: 1px;
+  padding: 7px 12px;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: #2b2420;
+  background: #fffaf0;
+  border: 2px solid #2b2420;
+  border-radius: 14px 14px 4px 14px;
+  box-shadow: 3px 3px 0 #2b2420;
+  overflow-wrap: anywhere;
+  animation: pop-in 260ms var(--ease-out);
+  transition: opacity 500ms ease, transform 500ms ease;
+}
+.edge-line.mine { background: #ffd2bd; }
+.edge-line .who { font-size: var(--text-xs); font-weight: 800; color: #6f635a; }
+.edge-line.is-fading { opacity: 0; transform: translateY(-6px); }
+
+@keyframes pop-in { from { opacity: 0; transform: translateY(8px) scale(0.95); } }
+
 @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
 @keyframes breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, 0.98); } }
 @keyframes bob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-5px) rotate(2deg); } }

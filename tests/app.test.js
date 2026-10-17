@@ -74,7 +74,9 @@ test('two app transports can chat both ways through the relay', async () => {
 
     assert.equal(a.transport.send({ type: 'visit', to: 'BBBBBB', message: '안녕' }), true);
     await until(() => b.inbox.some((m) => m.type === 'visit'));
-    assert.deepEqual(b.inbox.find((m) => m.type === 'visit'), { type: 'visit', from: 'AAAAAA', fromName: '에이', message: '안녕' });
+    assert.deepEqual(b.inbox.find((m) => m.type === 'visit'), {
+      type: 'visit', from: 'AAAAAA', fromName: '에이', message: '안녕', opens: false, late: false,
+    });
 
     await until(() => a.inbox.some((m) => m.type === 'visit-sent'));
     assert.equal(a.inbox.find((m) => m.type === 'visit-sent').message, '안녕');

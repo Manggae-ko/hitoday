@@ -19,10 +19,15 @@ function isServerUrl(value) {
   }
 }
 
+// A distinct default name, so two new users never both show up as the same name.
+const defaultName = (code) => `말랑${code.slice(0, 2)}`;
+const OLD_DEFAULT_NAME = '나';
+
 function freshProfile() {
+  const code = makeCode((n) => crypto.randomInt(n));
   return {
-    code: makeCode((n) => crypto.randomInt(n)),
-    name: '나',
+    code,
+    name: defaultName(code),
     friendCode: '',
     serverUrl: DEFAULT_SERVER,
   };
@@ -48,9 +53,11 @@ function saveProfile(dir, profile) {
 function loadProfile(dir) {
   const base = freshProfile();
   const stored = readJson(path.join(dir, FILE_NAME)) || {};
+  const code = isCode(stored.code) ? stored.code : base.code;
+  const storedName = cleanText(stored.name, MAX_NAME_LENGTH);
   const profile = {
-    code: isCode(stored.code) ? stored.code : base.code,
-    name: cleanText(stored.name, MAX_NAME_LENGTH) || base.name,
+    code,
+    name: storedName && storedName !== OLD_DEFAULT_NAME ? storedName : defaultName(code),
     friendCode: isCode(stored.friendCode) ? stored.friendCode : '',
     serverUrl: isServerUrl(stored.serverUrl) ? stored.serverUrl : base.serverUrl,
   };

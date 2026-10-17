@@ -38,7 +38,8 @@ function parseVisit(data) {
   if (!isCode(data.to)) return fail('bad-code');
   const message = cleanText(data.message, MAX_MESSAGE_LENGTH);
   if (!message) return fail('empty-message');
-  return pass({ type: 'visit', to: data.to, message });
+  // opens: this line starts a visit (the sender's character walks over).
+  return pass({ type: 'visit', to: data.to, message, opens: data.opens === true });
 }
 
 const PARSERS = { hello: parseHello, visit: parseVisit };

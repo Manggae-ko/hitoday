@@ -1,25 +1,63 @@
 {
   "name": "nolleowa",
   "version": "0.1.0",
+  "description": "친구 바탕화면에 캐릭터가 놀러 가서 얘기하는 앱",
   "main": "src/main/main.js",
-  "directories": {
-    "test": "tests"
-  },
+  "private": true,
   "scripts": {
     "start": "electron .",
     "server": "node server/relay.js",
     "test": "node --test tests/*.test.js",
-    "demo:a": "NOLLEOWA_PROFILE=a electron .",
-    "demo:b": "NOLLEOWA_PROFILE=b electron .",
+    "demo:a": "NOLLEOWA_PROFILE=a NOLLEOWA_REGION=left electron .",
+    "demo:b": "NOLLEOWA_PROFILE=b NOLLEOWA_REGION=right electron .",
     "icons": "node scripts/make-icons.js",
-    "snapshot": "electron scripts/snapshot.js"
+    "snapshot": "electron scripts/snapshot.js",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win"
   },
-  "description": "친구 바탕화면에 캐릭터가 쪽지 들고 놀러 가는 앱",
+  "nolleowa": {
+    "server": ""
+  },
   "dependencies": {
     "ws": "^8.22.0"
   },
   "devDependencies": {
-    "electron": "^44.8.0"
+    "electron": "^44.8.0",
+    "electron-builder": "^26.15.3"
   },
-  "private": true
+  "build": {
+    "appId": "app.nolleowa.desktop",
+    "productName": "Nolleowa",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**",
+      "shared/**",
+      "assets/**",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["universal"]
+        }
+      ],
+      "category": "public.app-category.social-networking",
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
+    },
+    "publish": {
+      "provider": "github"
+    }
+  }
 }

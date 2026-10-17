@@ -41,12 +41,7 @@ function parseVisit(data) {
   return pass({ type: 'visit', to: data.to, message });
 }
 
-function parseReturned(data) {
-  if (!isCode(data.to)) return fail('bad-code');
-  return pass({ type: 'returned', to: data.to });
-}
-
-const PARSERS = { hello: parseHello, visit: parseVisit, returned: parseReturned };
+const PARSERS = { hello: parseHello, visit: parseVisit };
 
 function parseClientMessage(raw) {
   let data;

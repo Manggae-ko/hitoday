@@ -22,10 +22,10 @@ function parseServerMessage(raw) {
       if (!isCode(data.from) || !fromName || !message) return null;
       return { type: 'visit', from: data.from, fromName, message };
     }
-    case 'returned':
-      return isCode(data.from) ? { type: 'returned', from: data.from } : null;
-    case 'visit-sent':
-      return { type: 'visit-sent', queued: Boolean(data.queued) };
+    case 'visit-sent': {
+      const message = cleanText(data.message, MAX_MESSAGE_LENGTH);
+      return message ? { type: 'visit-sent', message, queued: Boolean(data.queued) } : null;
+    }
     case 'error':
       return { type: 'error', reason: String(data.reason || 'unknown') };
     case 'welcome':

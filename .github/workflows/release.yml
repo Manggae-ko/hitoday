@@ -1,0 +1,52 @@
+# Push a tag like v0.1.0 → builds the macOS .dmg and Windows .exe and attaches them
+# to a draft GitHub Release. Publish the draft when you're happy with it.
+#
+# Set the relay address once: repo Settings → Secrets and variables → Actions →
+# Variables → NOLLEOWA_SERVER = wss://your-relay.onrender.com
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  build:
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: --mac
+          - os: windows-latest
+            target: --win
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Bake the relay address into the app
+        if: ${{ vars.NOLLEOWA_SERVER != '' }}
+        shell: bash
+        run: npm pkg set "nolleowa.server=${{ vars.NOLLEOWA_SERVER }}"
+      - name: Build and upload installers
+        run: npx electron-builder ${{ matrix.target }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"

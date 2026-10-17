@@ -4,7 +4,7 @@ const { loadProfile, saveProfile, applyChanges } = require('./profile');
 const { createTransport } = require('./transport');
 const { createOverlayWindow, createControlWindow } = require('./windows');
 const { createTray } = require('./tray');
-const { cleanText, isCode, MAX_MESSAGE_LENGTH } = require('../../shared/protocol');
+const { cleanText, MAX_MESSAGE_LENGTH } = require('../../shared/protocol');
 
 // NOLLEOWA_PROFILE=b lets two copies run side by side on one machine (handy for filming).
 const profileName = process.env.NOLLEOWA_PROFILE;
@@ -12,25 +12,30 @@ if (profileName && /^[a-z0-9-]{1,16}$/i.test(profileName)) {
   app.setPath('userData', path.join(app.getPath('appData'), `nolleowa-${profileName}`));
 }
 
+const CHAT_LOG_LIMIT = 30;
 const ERROR_TEXT = {
-  'too-fast': '조금 있다가 다시 놀러 가요.',
-  'not-friends': '친구도 내 코드를 등록해야 놀러 갈 수 있어요.',
-  'empty-message': '쪽지를 써 주세요.',
+  'too-fast': '조금 천천히 보내 주세요.',
+  'not-friends': '친구도 내 코드를 등록해야 얘기할 수 있어요.',
+  'empty-message': '할 말을 써 주세요.',
 };
 
-const state = { profile: null, connected: false, away: false, notice: '' };
+const state = { profile: null, connected: false, notice: '', chat: [] };
 let overlay = null;
 let control = null;
 let transport = null;
 
 function publicState() {
-  const { profile, connected, away, notice } = state;
-  return { ...profile, connected, away, notice };
+  const { profile, connected, notice, chat } = state;
+  return { ...profile, connected, notice, chat };
 }
 
 function pushState(changes = {}) {
   Object.assign(state, changes);
   if (control && !control.isDestroyed()) control.webContents.send('control:state', publicState());
+}
+
+function addChat(entry) {
+  pushState({ chat: [...state.chat, { ...entry, at: Date.now() }].slice(-CHAT_LOG_LIMIT), notice: '' });
 }
 
 function toOverlay(channel, payload) {
@@ -44,16 +49,13 @@ function helloPayload() {
 
 function handleServerMessage(msg) {
   if (msg.type === 'visit') {
-    if (msg.from !== state.profile.friendCode) return; // only my friend may visit
-    toOverlay('guest:arrive', msg);
+    if (msg.from !== state.profile.friendCode) return; // only my friend may talk to me
+    toOverlay('guest:says', msg);
+    addChat({ mine: false, name: msg.fromName, message: msg.message });
   } else if (msg.type === 'visit-sent') {
-    toOverlay('home:leave', { queued: msg.queued });
-    pushState({
-      away: true,
-      notice: msg.queued ? '친구가 지금 없어요. 쪽지만 두고 올게요.' : '놀러 갔어요!',
-    });
-  } else if (msg.type === 'returned') {
-    if (msg.from === state.profile.friendCode) toOverlay('home:return', { greeted: true });
+    toOverlay('home:says', { message: msg.message });
+    addChat({ mine: true, name: state.profile.name, message: msg.message });
+    if (msg.queued) pushState({ notice: '친구가 지금 꺼져 있어요. 켜면 바로 전달돼요.' });
   } else if (msg.type === 'error') {
     pushState({ notice: ERROR_TEXT[msg.reason] || `문제가 생겼어요 (${msg.reason})` });
   }
@@ -71,10 +73,6 @@ function registerIpc() {
   });
   ipcMain.handle('overlay:get-home', () => ({ name: state.profile.name }));
   ipcMain.on('overlay:open-control', openControl);
-  ipcMain.on('overlay:guest-done', (_e, from) => {
-    if (isCode(from)) transport.send({ type: 'returned', to: from });
-  });
-  ipcMain.on('overlay:home-back', () => pushState({ away: false }));
 
   ipcMain.handle('control:get-state', publicState);
   ipcMain.handle('control:copy-code', () => clipboard.writeText(state.profile.code));
@@ -89,11 +87,10 @@ function registerIpc() {
     pushState({ notice: serverChanged ? '새 서버에 연결하는 중…' : '저장했어요.' });
     return { ok: true };
   });
-  ipcMain.handle('control:visit', (_e, rawMessage) => {
+  ipcMain.handle('control:send', (_e, rawMessage) => {
     const message = cleanText(rawMessage, MAX_MESSAGE_LENGTH);
     if (!state.profile.friendCode) return { ok: false, error: '먼저 친구 코드를 등록해 주세요.' };
-    if (!message) return { ok: false, error: '쪽지를 써 주세요.' };
-    if (state.away) return { ok: false, error: '아직 놀러 가 있어요. 돌아오면 다시 가요.' };
+    if (!message) return { ok: false, error: '할 말을 써 주세요.' };
     if (!transport.send({ type: 'visit', to: state.profile.friendCode, message })) {
       return { ok: false, error: '서버에 연결되어 있지 않아요.' };
     }

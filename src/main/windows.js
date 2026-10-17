@@ -17,10 +17,20 @@ const secureWebPreferences = (preload) => ({
   sandbox: true,
 });
 
-function createOverlayWindow() {
+// NOLLEOWA_REGION=left|right gives each demo copy half the screen,
+// so two copies on one Mac look like two monitors side by side.
+function overlayBounds() {
   const { workArea } = screen.getPrimaryDisplay();
+  const half = Math.floor(workArea.width / 2);
+  const region = process.env.NOLLEOWA_REGION;
+  if (region === 'left') return { ...workArea, width: half };
+  if (region === 'right') return { ...workArea, x: workArea.x + half, width: workArea.width - half };
+  return workArea;
+}
+
+function createOverlayWindow() {
   const win = new BrowserWindow({
-    ...workArea,
+    ...overlayBounds(),
     transparent: true,
     frame: false,
     resizable: false,
@@ -38,7 +48,7 @@ function createOverlayWindow() {
   lockDown(win);
   win.loadFile(path.join(RENDERER_DIR, 'overlay.html'));
 
-  const fitToScreen = () => win.setBounds(screen.getPrimaryDisplay().workArea);
+  const fitToScreen = () => win.setBounds(overlayBounds());
   screen.on('display-metrics-changed', fitToScreen);
   screen.on('display-added', fitToScreen);
   screen.on('display-removed', fitToScreen);
@@ -46,9 +56,15 @@ function createOverlayWindow() {
 }
 
 function createControlWindow() {
+  const region = overlayBounds();
+  const width = 380;
+  const height = 740;
   const win = new BrowserWindow({
-    width: 380,
-    height: 700,
+    width,
+    height,
+    // Open over the middle of this copy's half (or the whole screen).
+    x: Math.round(region.x + (region.width - width) / 2),
+    y: Math.round(region.y + Math.max(0, (region.height - height) / 3)),
     resizable: false,
     show: false,
     title: '놀러와',

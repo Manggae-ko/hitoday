@@ -1,10 +1,12 @@
-// Tiny relay: passes "visit" and "returned" signals between friends.
+// Tiny relay: passes chat lines ("visit" messages) between friends, both ways.
 // It never sees anyone's screen — only codes, names and short notes.
 
+const http = require('node:http');
 const { WebSocketServer } = require('ws');
 const { parseClientMessage } = require('../shared/protocol');
 
-const MIN_VISIT_INTERVAL_MS = 5_000;
+const MIN_VISIT_INTERVAL_MS = 800; // fast enough to chat, slow enough to stop spam
+
 const MAX_QUEUED_PER_USER = 20;
 const QUEUE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_PAYLOAD_BYTES = 2_048;
@@ -19,7 +21,13 @@ function createRelay({ port = 8787, now = Date.now, log = () => {} } = {}) {
   const queues = new Map(); // code -> pending visits
   const lastVisitAt = new Map(); // code -> timestamp
 
-  const wss = new WebSocketServer({ port, maxPayload: MAX_PAYLOAD_BYTES });
+  // Plain HTTP for hosting health checks; WebSockets upgrade on the same port.
+  const httpServer = http.createServer((req, res) => {
+    const healthy = req.url === '/health';
+    res.writeHead(healthy ? 200 : 404, { 'content-type': 'text/plain' });
+    res.end(healthy ? 'ok' : 'not found');
+  });
+  const wss = new WebSocketServer({ server: httpServer, maxPayload: MAX_PAYLOAD_BYTES });
 
   function flushQueue(code, ws) {
     const fresh = (queues.get(code) || []).filter((v) => now() - v.sentAt < QUEUE_TTL_MS);
@@ -56,14 +64,10 @@ function createRelay({ port = 8787, now = Date.now, log = () => {} } = {}) {
     const target = online.get(msg.to);
     if (target) send(target, visit);
     else enqueue(msg.to, visit);
-    send(ws, { type: 'visit-sent', to: msg.to, queued: !target });
+    send(ws, { type: 'visit-sent', to: msg.to, message: msg.message, queued: !target });
   }
 
-  function handleReturned(ws, msg) {
-    send(online.get(msg.to), { type: 'returned', from: ws.user.code });
-  }
-
-  const HANDLERS = { visit: handleVisit, returned: handleReturned };
+  const HANDLERS = { visit: handleVisit };
 
   wss.on('connection', (ws) => {
     ws.on('message', (raw) => {
@@ -80,14 +84,14 @@ function createRelay({ port = 8787, now = Date.now, log = () => {} } = {}) {
     ws.on('error', (err) => log(`socket error: ${err.message}`));
   });
 
-  const ready = new Promise((resolve) => wss.on('listening', resolve));
+  const ready = new Promise((resolve) => httpServer.listen(port, resolve));
 
   return {
     ready,
-    port: () => wss.address().port,
+    port: () => httpServer.address().port,
     close: () => new Promise((resolve) => {
       wss.clients.forEach((c) => c.terminate());
-      wss.close(resolve);
+      wss.close(() => httpServer.close(resolve));
     }),
   };
 }

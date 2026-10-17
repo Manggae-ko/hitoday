@@ -43,7 +43,7 @@ test('parseServerMessage drops malformed or unknown messages', () => {
   assert.equal(parseServerMessage(JSON.stringify({ type: 'surprise' })), null);
 });
 
-test('two app transports can visit each other through the relay', async () => {
+test('two app transports can chat both ways through the relay', async () => {
   const relay = createRelay({ port: 0 });
   await relay.ready;
   const url = `ws://127.0.0.1:${relay.port()}`;
@@ -76,8 +76,11 @@ test('two app transports can visit each other through the relay', async () => {
     await until(() => b.inbox.some((m) => m.type === 'visit'));
     assert.deepEqual(b.inbox.find((m) => m.type === 'visit'), { type: 'visit', from: 'AAAAAA', fromName: '에이', message: '안녕' });
 
-    b.transport.send({ type: 'returned', to: 'AAAAAA' });
-    await until(() => a.inbox.some((m) => m.type === 'returned'));
+    await until(() => a.inbox.some((m) => m.type === 'visit-sent'));
+    assert.equal(a.inbox.find((m) => m.type === 'visit-sent').message, '안녕');
+
+    b.transport.send({ type: 'visit', to: 'AAAAAA', message: '어 안녕' });
+    await until(() => a.inbox.some((m) => m.type === 'visit'));
   } finally {
     made.forEach((t) => t.stop());
     await relay.close();

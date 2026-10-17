@@ -5,6 +5,7 @@ const el = {
   status: $('status'),
   code: $('my-code'),
   copy: $('copy'),
+  log: $('chat-log'),
   message: $('message'),
   counter: $('counter'),
   go: $('go'),
@@ -12,30 +13,52 @@ const el = {
   friend: $('friend'),
   server: $('server'),
   notice: $('notice'),
-  visitForm: $('visit-form'),
+  sendForm: $('send-form'),
   settingsForm: $('settings-form'),
 };
 
 let formFilled = false;
+let shownChatLength = -1;
 
 function showNotice(text, tone = 'info') {
   el.notice.textContent = text || '';
   el.notice.dataset.tone = tone;
 }
 
+function chatItem({ mine, name, message }) {
+  const li = document.createElement('li');
+  li.className = mine ? 'chat-line mine' : 'chat-line';
+  const who = document.createElement('span');
+  who.className = 'who';
+  who.textContent = name;
+  const text = document.createElement('span');
+  text.className = 'text';
+  text.textContent = message;
+  li.append(who, text);
+  return li;
+}
+
+function renderChat(chat) {
+  if (chat.length === shownChatLength) return;
+  shownChatLength = chat.length;
+  if (chat.length === 0) return;
+  el.log.replaceChildren(...chat.map(chatItem));
+  el.log.scrollTop = el.log.scrollHeight;
+}
+
 function render(state) {
   el.code.textContent = state.code;
   el.status.textContent = state.connected ? '연결됨' : '연결 끊김 · 다시 시도 중';
   el.status.dataset.connected = String(state.connected);
-  el.go.disabled = !state.connected || !state.friendCode || state.away;
-  el.go.textContent = state.away ? '놀러 가 있는 중…' : '놀러 가기 →';
+  el.go.disabled = !state.connected || !state.friendCode;
   if (!formFilled) {
     el.name.value = state.name;
     el.friend.value = state.friendCode;
     el.server.value = state.serverUrl;
     formFilled = true;
   }
-  if (state.notice) showNotice(state.notice);
+  renderChat(state.chat || []);
+  showNotice(state.notice);
 }
 
 el.copy.addEventListener('click', async () => {
@@ -46,28 +69,23 @@ el.copy.addEventListener('click', async () => {
   }, 1200);
 });
 
-el.message.addEventListener('input', () => {
-  el.counter.textContent = `${Array.from(el.message.value).length} / 80`;
-});
+const updateCounter = () => {
+  el.counter.textContent = `${Array.from(el.message.value).length} / 80 · Enter로 보내기`;
+};
+el.message.addEventListener('input', updateCounter);
 
 el.friend.addEventListener('input', () => {
   el.friend.value = el.friend.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
 });
 
-el.visitForm.addEventListener('submit', async (event) => {
+el.sendForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const result = await api.visit(el.message.value);
+  const result = await api.send(el.message.value);
   if (!result.ok) return showNotice(result.error, 'warn');
   el.message.value = '';
-  el.counter.textContent = '0 / 80';
+  updateCounter();
+  el.message.focus();
   return undefined;
-});
-
-el.message.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
-    event.preventDefault();
-    el.visitForm.requestSubmit();
-  }
 });
 
 el.settingsForm.addEventListener('submit', async (event) => {
@@ -81,4 +99,7 @@ el.settingsForm.addEventListener('submit', async (event) => {
 });
 
 api.onState(render);
-api.getState().then(render);
+api.getState().then((state) => {
+  render(state);
+  if (state.friendCode) el.message.focus();
+});

@@ -41,20 +41,19 @@ async function withRelay(fn, options = {}) {
   }
 }
 
-test('delivers a visit to an online friend and relays the return', () =>
+test('friends can talk both ways and the sender gets an echo', () =>
   withRelay(async (port) => {
     const a = await hello(port, 'AAAAAA', '에이', ['BBBBBB']);
     const b = await hello(port, 'BBBBBB', '비', ['AAAAAA']);
 
-    a.say({ type: 'visit', to: 'BBBBBB', message: '놀러왔어' });
-    const visit = await b.next('visit');
-    assert.equal(visit.from, 'AAAAAA');
-    assert.equal(visit.fromName, '에이');
-    assert.equal(visit.message, '놀러왔어');
-    assert.equal((await a.next('visit-sent')).queued, false);
+    a.say({ type: 'visit', to: 'BBBBBB', message: '뭐해?' });
+    const toB = await b.next('visit');
+    assert.deepEqual([toB.from, toB.fromName, toB.message], ['AAAAAA', '에이', '뭐해?']);
+    assert.deepEqual(await a.next('visit-sent'), { type: 'visit-sent', to: 'BBBBBB', message: '뭐해?', queued: false });
 
-    b.say({ type: 'returned', to: 'AAAAAA' });
-    assert.equal((await a.next('returned')).from, 'BBBBBB');
+    b.say({ type: 'visit', to: 'AAAAAA', message: '밥 먹는 중' });
+    const toA = await a.next('visit');
+    assert.deepEqual([toA.from, toA.message], ['BBBBBB', '밥 먹는 중']);
     a.ws.close();
     b.ws.close();
   }));
@@ -95,6 +94,13 @@ test('rate-limits visits sent too quickly', () => {
     a.ws.close();
   }, { now: () => clock });
 });
+
+test('answers health checks over plain HTTP', () =>
+  withRelay(async (port) => {
+    const res = await fetch(`http://127.0.0.1:${port}/health`);
+    assert.equal(res.status, 200);
+    assert.equal(await res.text(), 'ok');
+  }));
 
 test('rejects messages before hello and invalid payloads', () =>
   withRelay(async (port) => {

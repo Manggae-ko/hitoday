@@ -14,6 +14,19 @@
     </header>
 
     <main>
+      <section class="card card-chat" aria-labelledby="chat-heading">
+        <h2 id="chat-heading" class="eyebrow">친구랑 얘기하기</h2>
+        <ol class="chat-log" id="chat-log" aria-live="polite">
+          <li class="chat-empty">아직 나눈 얘기가 없어요. 먼저 말 걸어 보세요!</li>
+        </ol>
+        <form id="send-form" class="send-row">
+          <label class="sr-only" for="message">할 말</label>
+          <input id="message" maxlength="80" autocomplete="off" placeholder="뭐해? 밥 먹었어?" />
+          <button type="submit" class="go" id="go" aria-label="보내기">→</button>
+        </form>
+        <p class="counter" id="counter">0 / 80 · Enter로 보내기</p>
+      </section>
+
       <section class="card card-me" aria-labelledby="me-heading">
         <h2 id="me-heading" class="eyebrow">내 코드</h2>
         <div class="code-row">
@@ -23,24 +36,14 @@
         <p class="hint">친구한테 이 코드를 알려주세요.</p>
       </section>
 
-      <section class="card card-visit" aria-labelledby="visit-heading">
-        <h2 id="visit-heading" class="eyebrow">쪽지 들고 놀러 가기</h2>
-        <form id="visit-form">
-          <label class="sr-only" for="message">쪽지</label>
-          <textarea id="message" rows="2" maxlength="80" placeholder="뭐해? 밥 먹었어?"></textarea>
-          <div class="visit-row">
-            <span class="counter" id="counter">0 / 80</span>
-            <button type="submit" class="go" id="go">놀러 가기 →</button>
-          </div>
-        </form>
-      </section>
-
       <form id="settings-form" class="settings" aria-labelledby="settings-heading">
         <h2 id="settings-heading" class="eyebrow">설정</h2>
-        <label>내 이름 <input id="name" maxlength="12" autocomplete="off" /></label>
-        <label>친구 코드 <input id="friend" maxlength="6" autocomplete="off" placeholder="ABC234" /></label>
+        <div class="settings-grid">
+          <label>내 이름 <input id="name" maxlength="12" autocomplete="off" /></label>
+          <label>친구 코드 <input id="friend" maxlength="6" autocomplete="off" placeholder="ABC234" /></label>
+        </div>
         <details>
-          <summary>서버 주소</summary>
+          <summary>고급: 서버 주소</summary>
           <input id="server" autocomplete="off" spellcheck="false" />
         </details>
         <button type="submit" class="save">저장</button>

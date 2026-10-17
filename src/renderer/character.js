@@ -30,9 +30,14 @@ const CHARACTER_SVG = `
   </g>
 </svg>`;
 
-/** Stable hue per friend code so each visitor keeps their own color. */
+const HOME_HUE = 32;
+const MIN_HUE_DISTANCE = 45;
+
+/** Stable hue per friend code, kept clearly apart from my own character's color. */
 function hueFor(code) {
-  return Array.from(code || '').reduce((sum, ch) => (sum * 31 + ch.charCodeAt(0)) % 360, 17);
+  const hue = Array.from(code || '').reduce((sum, ch) => (sum * 31 + ch.charCodeAt(0)) % 360, 17);
+  const distance = Math.min(Math.abs(hue - HOME_HUE), 360 - Math.abs(hue - HOME_HUE));
+  return distance < MIN_HUE_DISTANCE ? (hue + 150) % 360 : hue;
 }
 
 function createCharacter({ name, hue, label }) {
@@ -69,5 +74,5 @@ function createCharacter({ name, hue, label }) {
   };
 }
 
-window.Character = { createCharacter, hueFor };
+window.Character = { createCharacter, hueFor, HOME_HUE };
 })();

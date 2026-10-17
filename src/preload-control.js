@@ -5,5 +5,5 @@ contextBridge.exposeInMainWorld('nolleowa', {
   onState: (callback) => ipcRenderer.on('control:state', (_e, state) => callback(state)),
   copyCode: () => ipcRenderer.invoke('control:copy-code'),
   save: (changes) => ipcRenderer.invoke('control:save', changes),
-  visit: (message) => ipcRenderer.invoke('control:visit', String(message)),
+  send: (message) => ipcRenderer.invoke('control:send', String(message)),
 });

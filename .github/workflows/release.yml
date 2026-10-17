@@ -1,9 +1,10 @@
-# Push a tag like v0.1.0 (matching "version" in package.json) → creates the GitHub Release,
-# then builds the macOS .dmg and Windows .exe and uploads them to it. The download page's
-# buttons point at releases/latest, so they pick up the new installers right away.
+# Push a tag like v0.1.2 (matching "version" in package.json):
+#   1. tests → 2. a DRAFT release → 3. Mac + Windows installers uploaded to it →
+#   4. the release is published only when every build succeeded.
+# So the download page's releases/latest never points at a half-finished release.
 #
-# The relay address is baked into the installers from the repo variable
-# Settings → Secrets and variables → Actions → Variables → JAKDANG_SERVER (e.g. wss://jakdang.naegoworks.com)
+# Mac builds are signed and notarized when the signing secrets exist (docs/MAC_SIGNING.md).
+# The relay address comes from the repo variable JAKDANG_SERVER.
 name: release
 
 on:
@@ -27,7 +28,6 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: npm test
 
-  # One release up front, so the two builds below don't race to create it.
   create-release:
     needs: test
     runs-on: ubuntu-latest
@@ -39,8 +39,8 @@ jobs:
           if [ "$version" != "$GITHUB_REF_NAME" ]; then
             echo "tag $GITHUB_REF_NAME does not match package.json version $version" && exit 1
           fi
-      - name: Create the release
-        run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "작당모의 $GITHUB_REF_NAME" --generate-notes
+      - name: Create a draft release
+        run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --draft --title "작당모의 $GITHUB_REF_NAME" --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -66,31 +66,74 @@ jobs:
         if: ${{ vars.JAKDANG_SERVER != '' }}
         shell: bash
         run: npm pkg set "jakdang.server=${{ vars.JAKDANG_SERVER }}"
-      # Mac: signed with the Developer ID certificate and notarized by Apple when these
-      # secrets exist (see docs/MAC_SIGNING.md); without them the build is unsigned.
-      - name: Build and upload installers
-        run: npx electron-builder ${{ matrix.target }} --publish always
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          CSC_LINK: ${{ matrix.os == 'macos-latest' && secrets.MAC_CERT_P12_BASE64 || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.MAC_CERT_PASSWORD || '' }}
-          APPLE_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_ID || '' }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_TEAM_ID || '' }}
-      - name: Check the Mac apps are signed and notarized
+
+      # Import the Developer ID certificate into a throwaway keychain ourselves;
+      # electron-builder then finds the identity there and signs with it.
+      - name: Import the Mac signing certificate
+        id: cert
         if: matrix.os == 'macos-latest'
         shell: bash
         env:
-          HAS_CERT: ${{ secrets.MAC_CERT_P12_BASE64 != '' }}
+          P12_BASE64: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
         run: |
-          if [ "$HAS_CERT" != "true" ]; then
-            echo "::warning::No signing secrets: the Mac app is unsigned (users see a Gatekeeper warning)."
+          if [ -z "$P12_BASE64" ]; then
+            echo "::warning::No signing secrets: building an unsigned Mac app."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+          echo "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$P12_PASSWORD" -A -t cert -f pkcs12
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/cert.p12"
+          echo "Identities found:"
+          security find-identity -v -p codesigning "$keychain"
+          if ! security find-identity -v -p codesigning "$keychain" | grep -q "Developer ID Application"; then
+            echo "::error::The certificate is not a 'Developer ID Application' certificate." && exit 1
+          fi
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build installers
+        shell: bash
+        run: npx electron-builder ${{ matrix.target }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ steps.cert.outputs.signed == 'true' && 'true' || 'false' }}
+          APPLE_ID: ${{ steps.cert.outputs.signed == 'true' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ steps.cert.outputs.signed == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ steps.cert.outputs.signed == 'true' && secrets.APPLE_TEAM_ID || '' }}
+
+      - name: Check the Mac apps are signed and notarized
+        if: steps.cert.outputs.signed == 'true'
+        shell: bash
+        run: |
           find dist -maxdepth 2 -name 'Jakdang.app' | while read -r app; do
             echo "== $app"
             codesign --verify --deep --strict --verbose=2 "$app"
             spctl --assess --type execute --verbose "$app"
             xcrun stapler validate "$app"
           done
+
+      - name: Upload to the draft release
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(dist/*.dmg dist/*.exe dist/*.blockmap dist/latest*.yml)
+          echo "uploading: ${files[*]}"
+          gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the release (all builds succeeded)
+        run: gh release edit "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --draft=false --latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

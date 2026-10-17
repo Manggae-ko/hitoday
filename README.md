@@ -101,6 +101,8 @@ A에서 "새 방 만들기" → 초대 코드를 B에 입력하면 둘이 같은
 | `src/main/avatars.js` | 내 캐릭터 이미지 저장, 친구 이미지 내려받기 |
 | `src/renderer/games.js` | 미니게임 연출 (간판, 스포트라이트, 가위바위보 버튼, 과녁) |
 | `src/renderer/sprites/` | 기본 픽셀 캐릭터 시트 12색 (`scripts/make-sprites.js`로 생성) |
+| `build/icon.png`, `assets/tray*.png` | 앱 아이콘(1024px)과 메뉴바 아이콘 (`scripts/make-icons.js`로 생성) |
+| `docs/CHARACTER_GUIDE.md` | 캐릭터 규격, 템플릿, AI 이미지 프롬프트 |
 | `src/main/` | Electron 메인: 프로필 저장, 서버 연결, 창·트레이, 자동 실행 |
 | `src/renderer/overlay.*` | 투명한 전체 화면 창, 화면 아래 방 멤버 줄 (캐릭터가 없는 곳은 클릭이 바탕화면으로 통과) |
 | `src/renderer/control.*` | 방 만들기·들어가기, 초대 코드, 멤버, 대화 |

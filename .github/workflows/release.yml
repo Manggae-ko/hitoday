@@ -66,8 +66,31 @@ jobs:
         if: ${{ vars.JAKDANG_SERVER != '' }}
         shell: bash
         run: npm pkg set "jakdang.server=${{ vars.JAKDANG_SERVER }}"
+      # Mac: signed with the Developer ID certificate and notarized by Apple when these
+      # secrets exist (see docs/MAC_SIGNING.md); without them the build is unsigned.
       - name: Build and upload installers
         run: npx electron-builder ${{ matrix.target }} --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          CSC_LINK: ${{ matrix.os == 'macos-latest' && secrets.MAC_CERT_P12_BASE64 || '' }}
+          CSC_KEY_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.MAC_CERT_PASSWORD || '' }}
+          APPLE_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ matrix.os == 'macos-latest' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ matrix.os == 'macos-latest' && secrets.APPLE_TEAM_ID || '' }}
+      - name: Check the Mac apps are signed and notarized
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        env:
+          HAS_CERT: ${{ secrets.MAC_CERT_P12_BASE64 != '' }}
+        run: |
+          if [ "$HAS_CERT" != "true" ]; then
+            echo "::warning::No signing secrets: the Mac app is unsigned (users see a Gatekeeper warning)."
+            exit 0
+          fi
+          find dist -maxdepth 2 -name 'Jakdang.app' | while read -r app; do
+            echo "== $app"
+            codesign --verify --deep --strict --verbose=2 "$app"
+            spctl --assess --type execute --verbose "$app"
+            xcrun stapler validate "$app"
+          done

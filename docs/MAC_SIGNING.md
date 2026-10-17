@@ -35,13 +35,18 @@ Xcode가 없다면 [developer.apple.com → Certificates](https://developer.appl
 
 | 이름 | 값 |
 | --- | --- |
-| `MAC_CERT_P12_BASE64` | 터미널에서 `base64 -i jakdang-developer-id.p12 \| pbcopy` 후 붙여넣기 |
+| `MAC_CERT_P12_BASE64` | 아래 명령으로 복사한 값 붙여넣기 |
 | `MAC_CERT_PASSWORD` | 2단계에서 정한 내보내기 비밀번호 |
 | `APPLE_ID` | Apple ID 이메일 |
 | `APPLE_APP_SPECIFIC_PASSWORD` | 3단계 앱 암호 (`xxxx-xxxx-xxxx-xxxx`) |
 | `APPLE_TEAM_ID` | 팀 ID |
 
-`gh` CLI를 쓴다면:
+`MAC_CERT_P12_BASE64` 값 복사하기 (`.p12` 파일이 있는 폴더에서):
+```bash
+base64 -i jakdang-developer-id.p12 | pbcopy
+```
+
+`gh` CLI를 쓴다면 복사 없이 바로 넣을 수 있어요:
 ```bash
 base64 -i jakdang-developer-id.p12 | gh secret set MAC_CERT_P12_BASE64 -R donghyeun02/jakdang
 gh secret set MAC_CERT_PASSWORD -R donghyeun02/jakdang          # 입력창에 붙여넣기

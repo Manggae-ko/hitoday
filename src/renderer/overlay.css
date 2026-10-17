@@ -1,0 +1,133 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: var(--font-ui);
+  user-select: none;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+}
+
+/* Characters always sit on paper-and-ink colors, regardless of the desktop theme. */
+.char {
+  --body: hsl(var(--hue) 70% 93%);
+  --body-shade: hsl(var(--hue) 45% 80%);
+  --outline: #2b2420;
+  position: absolute;
+  left: 0;
+  bottom: 6px;
+  width: 96px;
+  cursor: pointer;
+  will-change: transform;
+}
+
+.figure {
+  display: block;
+  width: 96px;
+  height: 96px;
+  overflow: visible;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.facing-left .figure { transform: scaleX(-1); }
+
+.body,
+.ear,
+.arm,
+.foot {
+  fill: var(--body);
+  stroke: var(--outline);
+  stroke-width: 2.4;
+}
+.ear { fill: var(--body-shade); }
+.shadow { fill: rgb(0 0 0 / 0.16); }
+.eye { fill: var(--outline); transform-box: fill-box; transform-origin: center; animation: blink 4.2s infinite; }
+.cheek { fill: #ff9f9f; opacity: 0.7; }
+.mouth { fill: none; stroke: var(--outline); stroke-width: 2; stroke-linecap: round; }
+.note rect { fill: #fff4b8; stroke: var(--outline); stroke-width: 2; }
+.note path { stroke: var(--outline); stroke-width: 1.6; stroke-linecap: round; }
+.note { display: none; }
+.has-note .note { display: inline; }
+
+.torso { transform-box: view-box; transform-origin: 50% 90%; animation: breathe 3s ease-in-out infinite; }
+.arm-r-group { transform-box: fill-box; transform-origin: 20% 80%; }
+.foot { transform-box: fill-box; transform-origin: center; }
+
+.is-walking .torso { animation: bob 0.42s ease-in-out infinite; }
+.is-walking .foot-l { animation: step 0.42s ease-in-out infinite; }
+.is-walking .foot-r { animation: step 0.42s ease-in-out infinite reverse; }
+.is-waving:not(.has-note) .arm-r-group { animation: wave 0.6s ease-in-out infinite; }
+.is-waving.has-note .arm-r-group { animation: offer 1.4s ease-in-out infinite; }
+
+.tag {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  translate: -50% 0;
+  margin-bottom: 2px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: #2b2420;
+  background: #fffaf0;
+  border: 2px solid #2b2420;
+  border-radius: 999px;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+.is-guest .tag,
+.char:hover .tag { opacity: 1; }
+
+.bubble {
+  position: absolute;
+  bottom: calc(100% + 30px);
+  left: 50%;
+  width: max-content;
+  max-width: 220px;
+  padding: 10px 14px;
+  font-size: var(--text-base);
+  line-height: 1.4;
+  color: #2b2420;
+  background: #fffaf0;
+  border: 2px solid #2b2420;
+  border-radius: var(--radius-lg);
+  box-shadow: 3px 3px 0 #2b2420;
+  overflow-wrap: anywhere;
+  opacity: 0;
+  transform: translate(-50%, 8px) scale(0.9);
+  transform-origin: bottom center;
+  transition: opacity 200ms var(--ease-out), transform 260ms var(--ease-out);
+  pointer-events: none;
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: inherit;
+  border-right: 2px solid #2b2420;
+  border-bottom: 2px solid #2b2420;
+  transform: translate(-50%, -6px) rotate(45deg);
+}
+.is-talking .bubble { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.is-home .bubble { left: auto; right: -10px; transform: translate(0, 8px) scale(0.9); transform-origin: bottom right; }
+.is-home.is-talking .bubble { transform: translate(0, 0) scale(1); }
+.is-home .bubble::after { left: 70%; }
+
+@keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
+@keyframes breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, 0.98); } }
+@keyframes bob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-5px) rotate(2deg); } }
+@keyframes step { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes wave { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-28deg); } }
+@keyframes offer { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .torso, .foot, .arm-r-group, .eye { animation: none !important; }
+}

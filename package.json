@@ -1,21 +1,25 @@
 {
   "name": "nolleowa",
-  "version": "1.0.0",
-  "main": "index.js",
+  "version": "0.1.0",
+  "main": "src/main/main.js",
   "directories": {
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "electron .",
+    "server": "node server/relay.js",
+    "test": "node --test tests/*.test.js",
+    "demo:a": "NOLLEOWA_PROFILE=a electron .",
+    "demo:b": "NOLLEOWA_PROFILE=b electron .",
+    "icons": "node scripts/make-icons.js",
+    "snapshot": "electron scripts/snapshot.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "description": "친구 바탕화면에 캐릭터가 쪽지 들고 놀러 가는 앱",
   "dependencies": {
     "ws": "^8.22.0"
   },
   "devDependencies": {
     "electron": "^44.8.0"
-  }
+  },
+  "private": true
 }

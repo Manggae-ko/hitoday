@@ -1,0 +1,42 @@
+/* Shared design tokens: warm paper + soft ink, like a hand-drawn sticker sheet. */
+:root {
+  --paper: #f6f1e7;
+  --paper-raised: #fffaf0;
+  --ink: #2b2420;
+  --ink-soft: #6f635a;
+  --line: #2b2420;
+  --accent: #ff8a5b;
+  --accent-ink: #3a1607;
+  --ok: #3f9b6e;
+  --warn: #c2562f;
+  --field: #ffffff;
+
+  --font-ui: "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", system-ui, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 0.95rem;
+  --text-lg: 1.25rem;
+  --text-code: 1.9rem;
+
+  --radius-sm: 8px;
+  --radius-lg: 18px;
+  --border: 2px solid var(--line);
+  --shadow-sticker: 3px 3px 0 var(--line);
+  --duration-fast: 140ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #1f1b18;
+    --paper-raised: #2a2521;
+    --ink: #f3ebe0;
+    --ink-soft: #b3a698;
+    --line: #f3ebe0;
+    --accent: #ff9a70;
+    --accent-ink: #2a0f04;
+    --ok: #6ccf9c;
+    --warn: #ff9a7a;
+    --field: #191512;
+  }
+}

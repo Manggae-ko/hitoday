@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'" />
+    <title>놀러와</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <link rel="stylesheet" href="control.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <h1>놀러와</h1>
+      <p class="status" id="status" data-connected="false">연결 중…</p>
+    </header>
+
+    <main>
+      <section class="card card-me" aria-labelledby="me-heading">
+        <h2 id="me-heading" class="eyebrow">내 코드</h2>
+        <div class="code-row">
+          <output id="my-code" class="code">······</output>
+          <button type="button" id="copy" class="chip">복사</button>
+        </div>
+        <p class="hint">친구한테 이 코드를 알려주세요.</p>
+      </section>
+
+      <section class="card card-visit" aria-labelledby="visit-heading">
+        <h2 id="visit-heading" class="eyebrow">쪽지 들고 놀러 가기</h2>
+        <form id="visit-form">
+          <label class="sr-only" for="message">쪽지</label>
+          <textarea id="message" rows="2" maxlength="80" placeholder="뭐해? 밥 먹었어?"></textarea>
+          <div class="visit-row">
+            <span class="counter" id="counter">0 / 80</span>
+            <button type="submit" class="go" id="go">놀러 가기 →</button>
+          </div>
+        </form>
+      </section>
+
+      <form id="settings-form" class="settings" aria-labelledby="settings-heading">
+        <h2 id="settings-heading" class="eyebrow">설정</h2>
+        <label>내 이름 <input id="name" maxlength="12" autocomplete="off" /></label>
+        <label>친구 코드 <input id="friend" maxlength="6" autocomplete="off" placeholder="ABC234" /></label>
+        <details>
+          <summary>서버 주소</summary>
+          <input id="server" autocomplete="off" spellcheck="false" />
+        </details>
+        <button type="submit" class="save">저장</button>
+      </form>
+
+      <p class="notice" id="notice" role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="control.js"></script>
+  </body>
+</html>

@@ -1,8 +1,9 @@
-# Push a tag like v0.1.0 → builds the macOS .dmg and Windows .exe and attaches them
-# to a draft GitHub Release. Publish the draft when you're happy with it.
+# Push a tag like v0.1.0 (matching "version" in package.json) → creates the GitHub Release,
+# then builds the macOS .dmg and Windows .exe and uploads them to it. The download page's
+# buttons point at releases/latest, so they pick up the new installers right away.
 #
-# Set the relay address once: repo Settings → Secrets and variables → Actions →
-# Variables → JAKDANG_SERVER = wss://your-relay.onrender.com
+# The relay address is baked into the installers from the repo variable
+# Settings → Secrets and variables → Actions → Variables → JAKDANG_SERVER (e.g. wss://jakdang.naegoworks.com)
 name: release
 
 on:
@@ -22,11 +23,31 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
       - run: npm test
 
-  build:
+  # One release up front, so the two builds below don't race to create it.
+  create-release:
     needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the tag matches package.json
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME does not match package.json version $version" && exit 1
+          fi
+      - name: Create the release
+        run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "작당모의 $GITHUB_REF_NAME" --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    needs: create-release
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest

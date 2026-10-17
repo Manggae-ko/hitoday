@@ -69,9 +69,16 @@
       "perMachine": false
     },
     "publish": {
-      "provider": "github"
+      "provider": "github",
+      "releaseType": "release",
+      "owner": "donghyeun02",
+      "repo": "jakdang"
     }
   },
   "license": "PolyForm-Noncommercial-1.0.0",
-  "author": "donghyeun02"
+  "author": "donghyeun02",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/donghyeun02/jakdang.git"
+  }
 }

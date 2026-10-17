@@ -42,7 +42,8 @@ A에서 "새 방 만들기" → 초대 코드를 B에 입력하면 같은 방이
 | `server/relay.js` | 방 만들기·들어가기·나가기, 메시지·위치 전달, 접속 상태, 색 배정, 연타 방지 |
 | `server/device-keys.js` | 기기 인증 (처음 접속한 기기만 그 코드를 쓸 수 있음, 해시만 저장) |
 | `server/games.js`, `server/game-host.js` | 미니게임 결과 규칙, 게임 진행 (제한 시간·결과 발표) |
-| `server/web.js`, `web/` | 다운로드 페이지, 다운로드 링크, 캐릭터 이미지 제공, `/health` |
+| `server/web.js`, `web/` | 다운로드 페이지, 다운로드 링크, 캐릭터 이미지 제공, `/health`, Google Analytics(선택) |
+| `server/stats.js`, `server/stats-page.js` | 일별 사용량 숫자 세기, 운영자 통계 페이지 `/stats` |
 | `src/main/` | Electron 메인: 프로필·기기 키 저장, 서버 연결, 창·트레이, 자동 실행 |
 | `src/main/avatars.js` | 내 캐릭터 이미지 저장, 친구 이미지 내려받기·검증 |
 | `src/renderer/overlay.*` | 투명한 전체 화면 창: 화면 아래 방 멤버 줄, 끌어서 옮기기 |
@@ -60,7 +61,9 @@ A에서 "새 방 만들기" → 초대 코드를 B에 입력하면 같은 방이
 | --- | --- |
 | `PORT` | 기본 8787 |
 | `GITHUB_REPO` | `owner/name`. 다운로드 버튼이 이 저장소의 최신 Release로 연결돼요 |
-| `DATA_DIR` | 기기 키 해시 저장 위치 (Docker에서는 `/data` 볼륨) |
+| `DATA_DIR` | 기기 키 해시와 일별 통계 저장 위치 (Docker에서는 `/data` 볼륨) |
+| `GA_MEASUREMENT_ID` | 다운로드 페이지 Google Analytics 측정 ID (`G-...`). 비우면 꺼짐 |
+| `STATS_TOKEN` | `/stats` 통계 페이지 비밀번호 (16자 이상). 비우면 페이지 없음 |
 
 서버를 재시작해도 방은 유지돼요. 앱이 다시 접속할 때 자기 방 코드를 알려주면 서버가 방을 다시 만들어요. 최근 대화 기록과 캐릭터 이미지는 메모리에만 있어서, 대화 기록은 비고 이미지는 앱이 다시 보내요.
 

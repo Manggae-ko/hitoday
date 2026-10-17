@@ -9,7 +9,7 @@ name: deploy
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - "server/**"
       - "shared/**"

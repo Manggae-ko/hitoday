@@ -154,7 +154,7 @@ app.whenReady().then(async () => {
   await shootControl({ ...roomState, hasSpot: true }, 'control-me.png', 'me');
 
   const page = path.join(__dirname, '..', 'web', 'index.html');
-  for (const [w, h, name] of [[1200, 900, 'web-desktop.png'], [390, 1400, 'web-phone.png']]) {
+  for (const [w, h, name] of [[1200, 1500, 'web-desktop.png'], [390, 1400, 'web-phone.png']]) {
     const win = offscreen(w, h);
     await win.loadFile(page);
     await wait(5_600);

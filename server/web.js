@@ -1,10 +1,15 @@
-// Plain-HTTP side of the relay: the download page, download redirects, health check.
+// Plain-HTTP side of the relay: the download page, download redirects, character images,
+// health check, and the operator's stats page.
 
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
+const { renderStatsPage } = require('./stats-page');
 
 const PAGE_PATH = path.join(__dirname, '..', 'web', 'index.html');
 const REPO_PATTERN = /^[\w.-]+\/[\w.-]+$/;
+const GA_ID_PATTERN = /^G-[A-Z0-9]{4,16}$/;
+const MIN_STATS_TOKEN_LENGTH = 16;
 // Fixed installer names (see "artifactName" in package.json), so "latest" links never change.
 const ASSETS = { mac: 'Jakdang-mac.dmg', win: 'Jakdang-Setup.exe' };
 
@@ -32,25 +37,103 @@ function loadSprites() {
   return sprites;
 }
 
-function createWebHandler({ repo = process.env.GITHUB_REPO, avatars = new Map() } = {}) {
-  const page = fs.readFileSync(PAGE_PATH);
+/** Google Analytics tag for the download page, plus a "download" event on the two buttons. */
+function analyticsTag(gaId, nonce) {
+  return `
+    <script nonce="${nonce}" async src="https://www.googletagmanager.com/gtag/js?id=${gaId}"></script>
+    <script nonce="${nonce}">
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){ dataLayer.push(arguments); }
+      gtag('js', new Date());
+      gtag('config', '${gaId}');
+      document.addEventListener('click', function (event) {
+        var link = event.target.closest && event.target.closest('a[href^="/download/"]');
+        if (link) gtag('event', 'download', { platform: link.getAttribute('href').split('/').pop() });
+      });
+    </script>
+  </head>`;
+}
+
+const ANALYTICS_NOTE = '<p class="analytics-note">방문 통계를 위해 Google Analytics를 사용해요.</p>\n      <footer>';
+
+function pageCsp(gaId, nonce) {
+  if (!gaId) return "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:";
+  const google = 'https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com';
+  return [
+    "default-src 'none'",
+    "style-src 'unsafe-inline'",
+    `script-src 'nonce-${nonce}' https://www.googletagmanager.com`,
+    `img-src 'self' data: ${google}`,
+    `connect-src ${google}`,
+  ].join('; ');
+}
+
+/** Checks the stats password from "?token=" or "Authorization: Bearer", in constant time. */
+function hasStatsAccess(req, url, statsToken) {
+  if (!statsToken) return false;
+  const header = req.headers.authorization || '';
+  const given = url.searchParams.get('token') || (header.startsWith('Bearer ') ? header.slice(7) : '');
+  const a = crypto.createHash('sha256').update(given).digest();
+  const b = crypto.createHash('sha256').update(statsToken).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+const noStats = { record: () => {}, report: () => null };
+
+function createWebHandler({
+  repo = process.env.GITHUB_REPO,
+  avatars = new Map(),
+  stats = noStats,
+  gaId = process.env.GA_MEASUREMENT_ID,
+  statsToken = process.env.STATS_TOKEN,
+} = {}) {
+  const page = fs.readFileSync(PAGE_PATH, 'utf8');
   const sprites = loadSprites();
+  const analytics = GA_ID_PATTERN.test(gaId || '') ? gaId : null;
+  // A short stats password would be guessable; refuse to enable the page with one.
+  const token = statsToken && statsToken.length >= MIN_STATS_TOKEN_LENGTH ? statsToken : null;
+  if (statsToken && !token) process.stderr.write(`STATS_TOKEN must be at least ${MIN_STATS_TOKEN_LENGTH} characters; stats page disabled\n`);
+
+  function renderPage() {
+    if (!analytics) return { html: page, nonce: null };
+    const nonce = crypto.randomBytes(16).toString('base64');
+    const html = page.replace('</head>', analyticsTag(analytics, nonce)).replace('<footer>', ANALYTICS_NOTE);
+    return { html, nonce };
+  }
 
   return function handle(req, res) {
-    const { pathname } = new URL(req.url, 'http://localhost');
+    const url = new URL(req.url, 'http://localhost');
+    const { pathname } = url;
     const reply = (status, headers, body) => {
       res.writeHead(status, { ...SECURITY_HEADERS, ...headers });
-      res.end(body);
+      res.end(req.method === 'HEAD' ? undefined : body);
     };
 
     if (req.method !== 'GET' && req.method !== 'HEAD') return reply(405, { allow: 'GET, HEAD' }, '');
     if (pathname === '/health') return reply(200, { 'content-type': 'text/plain' }, 'ok');
     if (pathname === '/') {
+      if (req.method === 'GET') stats.record('page_view');
+      const { html, nonce } = renderPage();
       return reply(200, {
         'content-type': 'text/html; charset=utf-8',
-        'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:",
-        'cache-control': 'public, max-age=300',
-      }, page);
+        'content-security-policy': pageCsp(analytics, nonce),
+        // A per-visit nonce means the page can't be shared from a cache.
+        'cache-control': analytics ? 'no-store' : 'public, max-age=300',
+      }, html);
+    }
+    if (pathname === '/stats' || pathname === '/stats.json') {
+      // Without a configured token the page doesn't exist at all.
+      if (!token) return reply(404, { 'content-type': 'text/plain; charset=utf-8' }, 'not found');
+      if (!hasStatsAccess(req, url, token)) return reply(401, { 'content-type': 'text/plain; charset=utf-8' }, 'unauthorized');
+      const report = stats.report();
+      const common = { 'cache-control': 'no-store', 'x-robots-tag': 'noindex' };
+      if (pathname === '/stats.json') return reply(200, { ...common, 'content-type': 'application/json' }, JSON.stringify(report));
+      return reply(200, {
+        ...common,
+        'content-type': 'text/html; charset=utf-8',
+        'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'",
+        'referrer-policy': 'no-referrer', // keep ?token= out of any Referer header
+      }, renderStatsPage(report));
     }
     const spriteMatch = pathname.match(/^\/sprites\/(mochi-\d{1,2}\.png)$/);
     if (spriteMatch && sprites.has(spriteMatch[1])) {
@@ -70,8 +153,9 @@ function createWebHandler({ repo = process.env.GITHUB_REPO, avatars = new Map() 
     const match = pathname.match(/^\/download\/(mac|win)$/);
     if (match) {
       const target = downloadUrl(repo, match[1]);
-      if (target) return reply(302, { location: target }, '');
-      return reply(503, { 'content-type': 'text/plain; charset=utf-8' }, '아직 다운로드 준비 중이에요.');
+      if (!target) return reply(503, { 'content-type': 'text/plain; charset=utf-8' }, '아직 다운로드 준비 중이에요.');
+      if (req.method === 'GET') stats.record(`download_${match[1]}`);
+      return reply(302, { location: target }, '');
     }
     return reply(404, { 'content-type': 'text/plain; charset=utf-8' }, 'not found');
   };

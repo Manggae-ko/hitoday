@@ -9,6 +9,7 @@ const { parseClientMessage, makeCode, MAX_ROOM_MEMBERS, ROOM_HISTORY } = require
 const { createWebHandler } = require('./web');
 const { createGameHost } = require('./game-host');
 const { createDeviceKeys } = require('./device-keys');
+const { createStats } = require('./stats');
 
 const MIN_SAY_INTERVAL_MS = 800; // fast enough to chat, slow enough to stop spam
 const MAX_PAYLOAD_BYTES = 64 * 1024; // room for one base64 character image
@@ -28,7 +29,9 @@ function createRelay({
   repo,
   randomInt = (n) => crypto.randomInt(n),
   gameTimings,
-  dataDir, // where device-key hashes are kept; omit to keep them in memory only
+  dataDir, // where device-key hashes and daily stats are kept; omit to keep them in memory only
+  gaId, // Google Analytics id for the download page (defaults to GA_MEASUREMENT_ID)
+  statsToken, // password for /stats (defaults to STATS_TOKEN)
 } = {}) {
   const online = new Map(); // user code -> ws
   const rooms = new Map(); // room code -> { members: Map(user code -> { name, joinedAt }), history: [] }
@@ -40,7 +43,13 @@ function createRelay({
   const pendingMoves = new Map(); // user code -> timer for a held-back move
 
   const deviceKeys = createDeviceKeys({ file: dataDir && path.join(dataDir, 'device-keys.json'), log });
-  const httpServer = http.createServer(createWebHandler({ repo, avatars }));
+  const stats = createStats({
+    file: dataDir && path.join(dataDir, 'stats.json'),
+    now,
+    log,
+    live: () => ({ online: online.size, rooms: rooms.size }),
+  });
+  const httpServer = http.createServer(createWebHandler({ repo, avatars, stats, gaId, statsToken }));
   const wss = new WebSocketServer({ server: httpServer, maxPayload: MAX_PAYLOAD_BYTES });
 
   function roomSnapshot(roomCode) {
@@ -126,10 +135,13 @@ function createRelay({
       ws.close(4001, verdict);
       return;
     }
+    if (verdict === 'claimed') stats.record('new_device');
+    stats.record('connect');
     const previous = online.get(msg.code);
     if (previous && previous !== ws) previous.close(4000, 'replaced');
     ws.user = { code: msg.code, name: msg.name, character: msg.character, x: msg.x };
     online.set(msg.code, ws);
+    stats.notePeak(online.size);
     send(ws, { type: 'welcome', code: msg.code });
     // Rejoin (or rebuild after a server restart) the room this app was in.
     const roomCode = roomOf.get(msg.code) || msg.room;
@@ -146,6 +158,7 @@ function createRelay({
     const line = { from: code, fromName: name, message, at: now() };
     const room = rooms.get(roomCode);
     room.history = [...room.history, line].slice(-ROOM_HISTORY);
+    stats.record('message');
     return broadcast(roomCode, { type: 'said', ...line });
   }
 
@@ -175,6 +188,7 @@ function createRelay({
     'create-room': (ws) => {
       const reason = enterRoom(ws.user.code, ws.user, newRoomCode(), { create: true });
       if (reason) send(ws, { type: 'error', reason });
+      else stats.record('room_created');
     },
     'join-room': (ws, msg) => {
       const reason = enterRoom(ws.user.code, ws.user, msg.room, { create: false });
@@ -201,6 +215,7 @@ function createRelay({
       const roomCode = roomOf.get(ws.user.code);
       const reason = roomCode ? games.start(roomCode, msg.game, ws.user.code, onlineMembers(roomCode)) : 'no-room';
       if (reason) send(ws, { type: 'error', reason });
+      else stats.record(`game_${msg.game}`);
     },
     'game-move': (ws, msg) => {
       const roomCode = roomOf.get(ws.user.code);
@@ -235,6 +250,7 @@ function createRelay({
     close: () => new Promise((resolve) => {
       games.stopAll();
       deviceKeys.flush();
+      stats.stop();
       pendingMoves.forEach((timer) => clearTimeout(timer));
       wss.clients.forEach((c) => c.terminate());
       wss.close(() => httpServer.close(resolve));

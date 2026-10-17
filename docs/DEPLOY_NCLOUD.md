@@ -108,6 +108,19 @@ main에 서버 코드가 푸시되면 테스트 → 서버에서 자동으로 �
    - `DEPLOY_SSH_KEY` = `~/.ssh/jakdang_deploy` 파일 내용 전체
 3. 비공개 저장소라면 서버에서 `git pull`이 되도록 서버에 [deploy key](https://docs.github.com/ko/authentication/connecting-to-github-with-ssh/managing-deploy-keys)를 등록하세요.
 
+## 7. 통계 보기
+
+**서버 통계 (앱 사용량)**: 동시 접속, 열린 방, 새 설치, 메시지, 게임, 다운로드를 날짜별로 세요. 숫자만 세고 이름·코드·메시지 내용·IP는 기록하지 않아요.
+
+1. 서버에서 비밀번호 만들기: `openssl rand -hex 24`
+2. `~/jakdang/deploy/.env`에 `STATS_TOKEN=<만든 값>` 추가 → `docker compose up -d`
+3. 브라우저에서 `https://jakdang.naegoworks.com/stats?token=<만든 값>` (북마크해 두면 편해요)
+
+**다운로드 페이지 방문 (Google Analytics)**
+1. [analytics.google.com](https://analytics.google.com)에서 속성 만들기 → 웹 스트림 URL `https://jakdang.naegoworks.com`
+2. 측정 ID(`G-XXXXXXXXXX`)를 `.env`의 `GA_MEASUREMENT_ID=`에 넣고 `docker compose up -d`
+3. 다운로드 버튼 클릭은 `download` 이벤트(platform: mac/win)로 들어가요. 페이지 하단에 GA 사용 안내 문구가 자동으로 붙어요.
+
 ## 운영 메모
 
 - **업데이트**: `cd ~/jakdang && git pull && cd deploy && docker compose up -d --build`

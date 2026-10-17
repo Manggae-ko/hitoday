@@ -8,6 +8,8 @@ services:
     restart: unless-stopped
     environment:
       GITHUB_REPO: ${GITHUB_REPO:-}
+      GA_MEASUREMENT_ID: ${GA_MEASUREMENT_ID:-}
+      STATS_TOKEN: ${STATS_TOKEN:-}
     volumes:
       - relay-data:/data
     expose:

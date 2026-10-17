@@ -1,6 +1,6 @@
 # 캐릭터·그림 저작권 (Assets)
 
-Copyright (c) 2026 donghyeun02. All rights reserved.
+Copyright (c) 2026 naego works. All rights reserved.
 
 작당모의의 캐릭터와 그림은 코드 라이선스(`LICENSE`, PolyForm Noncommercial)에 **포함되지 않아요.**
 저작권자의 서면 허락 없이 복제, 수정, 배포, 상업적 이용을 할 수 없어요.
@@ -17,7 +17,7 @@ Copyright (c) 2026 donghyeun02. All rights reserved.
 - 사용자가 직접 그려서 앱에 올린 이미지의 저작권은 그 사용자에게 있어요.
 - 갈무리 폰트 등 다른 사람의 저작물은 각자의 라이선스를 따라요 (`THIRD_PARTY_NOTICES.md`).
 
-이용 문의: https://github.com/donghyeun02
+이용 문의: https://naegoworks.com
 
 ---
 

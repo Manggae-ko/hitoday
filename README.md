@@ -1,4 +1,4 @@
-# 놀러와
+# 작당모의
 
 초대 코드 하나로 친구들 캐릭터가 서로의 바탕화면 아래에 모여 사는 앱이에요. 맥과 윈도우 둘 다 돼요.
 
@@ -28,7 +28,7 @@
 
 다운로드 페이지(`https://<서버주소>/`)에서 맥 또는 윈도우 버튼을 누르면 돼요.
 
-- **맥**: `.dmg`를 열고 놀러와를 응용 프로그램 폴더로 끌어다 놓기
+- **맥**: `.dmg`를 열고 작당모의를 응용 프로그램 폴더로 끌어다 놓기
 - **윈도우**: `.exe` 더블클릭 (내 계정에만 설치돼서 관리자 권한이 필요 없어요)
 
 설치하고 나면 컴퓨터를 켤 때 자동으로 실행돼요. 서버 주소는 앱에 들어 있어서 따로 입력할 게 없어요.
@@ -47,13 +47,13 @@
 
 - **Render (무료로 시작)**: render.com → New → Blueprint → 이 저장소 선택. `render.yaml`대로 올라가요.
   무료 플랜은 한동안 접속이 없으면 잠들어서, 첫 연결에 30초쯤 걸릴 수 있어요.
-- **직접 서버 (EC2·Lightsail 등)**: `docker build -f server/Dockerfile -t nolleowa-relay .` → `docker run -p 8787:8787 -e GITHUB_REPO=내아이디/nolleowa nolleowa-relay`.
+- **직접 서버 (EC2·Lightsail 등)**: `docker build -f server/Dockerfile -t jakdang-relay .` → `docker run -p 8787:8787 -e GITHUB_REPO=내아이디/jakdang jakdang-relay`.
   앞에 HTTPS(wss) 프록시(Caddy·nginx)를 두세요.
 
 | 환경변수 | 설명 |
 | --- | --- |
 | `PORT` | 기본 8787 |
-| `GITHUB_REPO` | `내아이디/nolleowa`. 다운로드 버튼이 이 저장소의 최신 Release로 연결돼요. |
+| `GITHUB_REPO` | `내아이디/jakdang`. 다운로드 버튼이 이 저장소의 최신 Release로 연결돼요. |
 
 확인: `https://<서버주소>/health`가 `ok`, `https://<서버주소>/`가 다운로드 페이지.
 
@@ -62,7 +62,7 @@
 
 ### 2. 설치 파일 배포
 
-1. GitHub 저장소 → Settings → Secrets and variables → Actions → **Variables**에 `NOLLEOWA_SERVER = wss://<서버주소>` 추가
+1. GitHub 저장소 → Settings → Secrets and variables → Actions → **Variables**에 `JAKDANG_SERVER = wss://<서버주소>` 추가
 2. 버전 태그 푸시: `git tag v0.1.0 && git push origin v0.1.0`
 3. GitHub Actions가 맥 `.dmg`와 윈도우 `.exe`를 만들어 Releases에 초안으로 올려요. 확인하고 Publish 하면 다운로드 페이지 버튼이 바로 새 버전을 받아요.
 

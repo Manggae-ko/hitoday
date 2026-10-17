@@ -8,7 +8,7 @@ const { createTransport, parseServerMessage } = require('../src/main/transport')
 const { createRelay } = require('../server/relay');
 
 const base = { code: 'AAAAAA', name: '나', room: '', serverUrl: 'ws://localhost:8787' };
-const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'nolleowa-'));
+const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'jakdang-'));
 
 test('loadProfile creates a code and a distinct default name once', () => {
   const dir = tmpDir();

@@ -206,5 +206,5 @@ module.exports = { createRelay, MIN_SAY_INTERVAL_MS };
 if (require.main === module) {
   const port = Number(process.env.PORT) || 8787;
   const relay = createRelay({ port, log: (line) => process.stdout.write(`${line}\n`) });
-  relay.ready.then(() => process.stdout.write(`놀러와 relay listening on :${port}\n`));
+  relay.ready.then(() => process.stdout.write(`작당모의 relay listening on :${port}\n`));
 }

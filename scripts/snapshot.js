@@ -70,7 +70,7 @@ async function save(win, name) {
 
 async function shootControl(state, name) {
   controlState = state;
-  const win = offscreen(380, 740, 'preload-control.js');
+  const win = offscreen(380, 780, 'preload-control.js');
   await win.loadFile(path.join(RENDERER, 'control.html'));
   await wait(400);
   await save(win, name);

@@ -1,21 +1,21 @@
 {
-  "name": "nolleowa",
+  "name": "jakdang",
   "version": "0.1.0",
-  "description": "친구 바탕화면에 캐릭터가 놀러 가서 얘기하는 앱",
+  "description": "작당모의: 친구들 캐릭터가 서로의 바탕화면 아래에 모여 사는 앱",
   "main": "src/main/main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
     "server": "node server/relay.js",
     "test": "node --test tests/*.test.js",
-    "demo:a": "NOLLEOWA_PROFILE=a NOLLEOWA_REGION=left electron .",
-    "demo:b": "NOLLEOWA_PROFILE=b NOLLEOWA_REGION=right electron .",
+    "demo:a": "JAKDANG_PROFILE=a JAKDANG_REGION=left electron .",
+    "demo:b": "JAKDANG_PROFILE=b JAKDANG_REGION=right electron .",
     "icons": "node scripts/make-icons.js",
     "snapshot": "electron scripts/snapshot.js",
     "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win"
   },
-  "nolleowa": {
+  "jakdang": {
     "server": ""
   },
   "dependencies": {
@@ -26,8 +26,8 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "app.nolleowa.desktop",
-    "productName": "Nolleowa",
+    "appId": "app.jakdang.desktop",
+    "productName": "Jakdang",
     "directories": {
       "output": "dist"
     },
@@ -44,17 +44,19 @@
           "arch": ["universal"]
         }
       ],
-      "artifactName": "Nolleowa-mac.${ext}",
+      "artifactName": "Jakdang-mac.${ext}",
       "category": "public.app-category.social-networking",
       "extendInfo": {
-        "LSUIElement": true
+        "LSUIElement": true,
+        "CFBundleDisplayName": "작당모의"
       }
     },
     "win": {
       "target": ["nsis"]
     },
     "nsis": {
-      "artifactName": "Nolleowa-Setup.${ext}",
+      "artifactName": "Jakdang-Setup.${ext}",
+      "shortcutName": "작당모의",
       "oneClick": true,
       "perMachine": false
     },

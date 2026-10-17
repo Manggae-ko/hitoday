@@ -17,12 +17,12 @@ const secureWebPreferences = (preload) => ({
   sandbox: true,
 });
 
-// NOLLEOWA_REGION=left|right gives each demo copy half the screen,
+// JAKDANG_REGION=left|right gives each demo copy half the screen,
 // so two copies on one Mac look like two monitors side by side.
 function overlayBounds() {
   const { workArea } = screen.getPrimaryDisplay();
   const half = Math.floor(workArea.width / 2);
-  const region = process.env.NOLLEOWA_REGION;
+  const region = process.env.JAKDANG_REGION;
   if (region === 'left') return { ...workArea, width: half };
   if (region === 'right') return { ...workArea, x: workArea.x + half, width: workArea.width - half };
   return workArea;
@@ -58,7 +58,7 @@ function createOverlayWindow() {
 function createControlWindow() {
   const region = overlayBounds();
   const width = 380;
-  const height = 740;
+  const height = 780;
   const win = new BrowserWindow({
     width,
     height,
@@ -67,7 +67,7 @@ function createControlWindow() {
     y: Math.round(region.y + Math.max(0, (region.height - height) / 3)),
     resizable: false,
     show: false,
-    title: '놀러와',
+    title: '작당모의',
     autoHideMenuBar: true,
     backgroundColor: '#f6f1e7',
     webPreferences: secureWebPreferences('preload-control.js'),

@@ -58,8 +58,9 @@ main { display: grid; gap: 16px; }
 
 .games { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0 0 12px; }
 .game-btn {
-  padding: 7px 4px;
-  font-size: var(--text-sm);
+  padding: 7px 2px;
+  font-size: 0.8rem;
+  white-space: nowrap;
   font-weight: 800;
   background: #fff4b8;
   border-radius: 10px;

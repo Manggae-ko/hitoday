@@ -14,10 +14,10 @@ const {
   loadOwnAvatar, saveOwnAvatar, clearOwnAvatar, createAvatarCache, toLook,
 } = require('./avatars');
 
-// NOLLEOWA_PROFILE=b lets two copies run side by side on one machine (handy for filming).
-const profileName = process.env.NOLLEOWA_PROFILE;
+// JAKDANG_PROFILE=b lets two copies run side by side on one machine (handy for filming).
+const profileName = process.env.JAKDANG_PROFILE;
 if (profileName && /^[a-z0-9-]{1,16}$/i.test(profileName)) {
-  app.setPath('userData', path.join(app.getPath('appData'), `nolleowa-${profileName}`));
+  app.setPath('userData', path.join(app.getPath('appData'), `jakdang-${profileName}`));
 }
 
 const ERROR_TEXT = {

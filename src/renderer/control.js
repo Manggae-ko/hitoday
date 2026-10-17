@@ -1,4 +1,4 @@
-const api = window.nolleowa;
+const api = window.jakdang;
 const $ = (id) => document.getElementById(id);
 
 const el = {

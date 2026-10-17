@@ -137,10 +137,17 @@ function drawTemplate() {
   });
 }
 
-const spriteDir = path.join(__dirname, '..', 'src', 'renderer', 'sprites');
+// The app and the download page each get a copy (the server image doesn't ship src/).
+const spriteDirs = [
+  path.join(__dirname, '..', 'src', 'renderer', 'sprites'),
+  path.join(__dirname, '..', 'web', 'sprites'),
+];
+const spriteDir = spriteDirs[0];
 const docsDir = path.join(__dirname, '..', 'docs');
-fs.mkdirSync(spriteDir, { recursive: true });
 fs.mkdirSync(docsDir, { recursive: true });
-ROOM_HUES.forEach((hue, i) => fs.writeFileSync(path.join(spriteDir, `mochi-${i}.png`), drawSheet(hue)));
+spriteDirs.forEach((dir) => {
+  fs.mkdirSync(dir, { recursive: true });
+  ROOM_HUES.forEach((hue, i) => fs.writeFileSync(path.join(dir, `mochi-${i}.png`), drawSheet(hue)));
+});
 fs.writeFileSync(path.join(docsDir, 'character-template.png'), drawTemplate());
 process.stdout.write(`${ROOM_HUES.length} sheets → ${spriteDir}\ntemplate → ${docsDir}/character-template.png\n`);

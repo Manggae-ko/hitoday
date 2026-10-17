@@ -3,7 +3,7 @@
 // Whoever talks gets a bubble; people whose app is off doze (dimmed, zzz).
 
 const { createCharacter, colorFor } = window.Character;
-const api = window.nolleowa;
+const api = window.jakdang;
 
 const CHAR_WIDTH = 96;
 const WALK_SPEED_PX_PER_S = 170;

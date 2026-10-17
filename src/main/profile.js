@@ -6,9 +6,9 @@ const crypto = require('node:crypto');
 const { makeCode, isCode, cleanText, MAX_NAME_LENGTH } = require('../../shared/protocol');
 
 const FILE_NAME = 'profile.json';
-// Installers ship with the server from package.json ("nolleowa.server"), so users never type it.
-const PACKAGED_SERVER = (require('../../package.json').nolleowa || {}).server;
-const DEFAULT_SERVER = process.env.NOLLEOWA_SERVER || PACKAGED_SERVER || 'ws://localhost:8787';
+// Installers ship with the server from package.json ("jakdang.server"), so users never type it.
+const PACKAGED_SERVER = (require('../../package.json').jakdang || {}).server;
+const DEFAULT_SERVER = process.env.JAKDANG_SERVER || PACKAGED_SERVER || 'ws://localhost:8787';
 
 // A distinct default name, so two new users never both show up as the same name.
 const defaultName = (code) => `말랑${code.slice(0, 2)}`;

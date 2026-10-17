@@ -1,13 +1,13 @@
 # One-click deploy of the relay on Render (render.com → New → Blueprint → pick this repo).
 services:
   - type: web
-    name: nolleowa-relay
+    name: jakdang-relay
     runtime: docker
     dockerfilePath: ./server/Dockerfile
     dockerContext: .
     plan: free
     healthCheckPath: /health
     envVars:
-      # Download buttons point at this repo's latest GitHub Release, e.g. "myname/nolleowa".
+      # Download buttons point at this repo's latest GitHub Release, e.g. "myname/jakdang".
       - key: GITHUB_REPO
         sync: false

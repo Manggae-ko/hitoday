@@ -2,7 +2,7 @@
 # to a draft GitHub Release. Publish the draft when you're happy with it.
 #
 # Set the relay address once: repo Settings → Secrets and variables → Actions →
-# Variables → NOLLEOWA_SERVER = wss://your-relay.onrender.com
+# Variables → JAKDANG_SERVER = wss://your-relay.onrender.com
 name: release
 
 on:
@@ -42,9 +42,9 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Bake the relay address into the app
-        if: ${{ vars.NOLLEOWA_SERVER != '' }}
+        if: ${{ vars.JAKDANG_SERVER != '' }}
         shell: bash
-        run: npm pkg set "nolleowa.server=${{ vars.NOLLEOWA_SERVER }}"
+        run: npm pkg set "jakdang.server=${{ vars.JAKDANG_SERVER }}"
       - name: Build and upload installers
         run: npx electron-builder ${{ matrix.target }} --publish always
         env:

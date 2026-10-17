@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('nolleowa', {
+contextBridge.exposeInMainWorld('jakdang', {
   getState: () => ipcRenderer.invoke('control:get-state'),
   onState: (callback) => ipcRenderer.on('control:state', (_e, state) => callback(state)),
   createRoom: () => ipcRenderer.invoke('control:create-room'),

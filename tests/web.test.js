@@ -23,17 +23,26 @@ test('serves the download page with security headers', () =>
   }));
 
 test('download buttons redirect to the latest GitHub release asset', () =>
-  withRelay({ repo: 'dong/nolleowa' }, async (base) => {
+  withRelay({ repo: 'dong/jakdang' }, async (base) => {
     const mac = await fetch(`${base}/download/mac`, { redirect: 'manual' });
     assert.equal(mac.status, 302);
-    assert.equal(mac.headers.get('location'), 'https://github.com/dong/nolleowa/releases/latest/download/Nolleowa-mac.dmg');
+    assert.equal(mac.headers.get('location'), 'https://github.com/dong/jakdang/releases/latest/download/Jakdang-mac.dmg');
     const win = await fetch(`${base}/download/win`, { redirect: 'manual' });
-    assert.equal(win.headers.get('location'), 'https://github.com/dong/nolleowa/releases/latest/download/Nolleowa-Setup.exe');
+    assert.equal(win.headers.get('location'), 'https://github.com/dong/jakdang/releases/latest/download/Jakdang-Setup.exe');
   }));
 
 test('downloads say "not ready" until a repo is configured', () =>
   withRelay({ repo: '' }, async (base) => {
     assert.equal((await fetch(`${base}/download/mac`, { redirect: 'manual' })).status, 503);
+  }));
+
+test('serves the pixel characters used on the download page', () =>
+  withRelay({}, async (base) => {
+    const res = await fetch(`${base}/sprites/mochi-2.png`);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('content-type'), 'image/png');
+    assert.equal((await fetch(`${base}/sprites/../package.json`)).status, 404);
+    assert.equal((await fetch(`${base}/sprites/mochi-99.png`)).status, 404);
   }));
 
 test('unknown paths and methods are rejected', () =>

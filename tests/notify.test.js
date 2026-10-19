@@ -40,28 +40,39 @@ test('refuses anything but an https address', () => {
   notifier.stop();
 });
 
-test('lines that arrive close together go out as one message', async () => {
+test('the first line goes out right away; lines right after it are batched', async () => {
   const { fn, calls } = fakeFetch();
-  const notifier = createNotifier({ url: URL, fetch: fn, batchMs: 30 });
+  const notifier = createNotifier({ url: URL, fetch: fn, batchMs: 40 });
   notifier.notify('하나');
-  notifier.notify('둘');
   await tick();
-  assert.equal(calls.length, 0, 'held back until the batch window ends');
-  await new Promise((r) => setTimeout(r, 50));
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 1, 'nothing was sent recently, so no waiting');
   assert.equal(calls[0].url, URL);
-  assert.equal(calls[0].body.content, '하나\n둘');
+  assert.equal(calls[0].body.content, '하나');
+
+  notifier.notify('둘');
+  notifier.notify('셋');
+  await tick();
+  assert.equal(calls.length, 1, 'held back until the window after the last send ends');
+  await new Promise((r) => setTimeout(r, 60));
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].body.content, '둘\n셋');
+
+  await new Promise((r) => setTimeout(r, 60));
+  notifier.notify('넷');
+  await tick();
+  assert.equal(calls.length, 3, 'a quiet spell resets it to immediate');
   notifier.stop();
 });
 
 test('urgent lines go out right away, with anything already waiting', async () => {
   const { fn, calls } = fakeFetch();
   const notifier = createNotifier({ url: URL, fetch: fn, batchMs: 10_000 });
+  notifier.notify('처음');
   notifier.notify('대기 중');
   notifier.notify('서버 꺼짐', { now: true });
   await tick();
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].body.content, '대기 중\n서버 꺼짐');
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].body.content, '대기 중\n서버 꺼짐');
   notifier.stop();
 });
 
@@ -70,8 +81,8 @@ test('a very long batch is cut to fit one message', async () => {
   const notifier = createNotifier({ url: URL, fetch: fn, batchMs: 10_000 });
   for (let i = 0; i < 300; i += 1) notifier.notify(`새 사용자가 처음 접속했어요 #${i}`);
   await notifier.flush();
-  assert.equal(calls.length, 1);
-  const { content } = calls[0].body;
+  assert.equal(calls.length, 2, 'the first went out alone, the rest together');
+  const { content } = calls[1].body;
   assert.ok(content.length <= MAX_CONTENT, `${content.length} > ${MAX_CONTENT}`);
   assert.match(content, /외 \d+건/);
   notifier.stop();

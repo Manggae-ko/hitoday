@@ -6,6 +6,7 @@ const {
 const { createTransport } = require('./transport');
 const { createOverlayWindow, createControlWindow } = require('./windows');
 const { createTray } = require('./tray');
+const { startUpdater } = require('./updater');
 const {
   cleanText, normalizeCode, isCode, spotOrNull, MAX_MESSAGE_LENGTH, ROOM_HISTORY, GAMES, RPS_HANDS,
 } = require('../../shared/protocol');
@@ -278,7 +279,19 @@ app.whenReady().then(() => {
   });
   registerIpc();
   overlay = createOverlayWindow();
-  createTray({ onOpen: openControl, onQuit: () => app.quit() });
+  const tray = createTray({ onOpen: openControl, onQuit: () => app.quit() });
+  // Installed copies update themselves from GitHub Releases (not while developing).
+  if (app.isPackaged) {
+    const { autoUpdater } = require('electron-updater');
+    startUpdater({
+      autoUpdater,
+      log: (line) => console.warn(line),
+      onReady: (version) => {
+        tray.showUpdate(() => autoUpdater.quitAndInstall());
+        pushState({ notice: `새 버전${version ? `(${version})` : ''}을 받았어요. 트레이 메뉴에서 바로 업데이트하거나, 다음에 켤 때 적용돼요.` });
+      },
+    });
+  }
   transport = createTransport({
     getHello: helloPayload,
     onMessage: handleServerMessage,

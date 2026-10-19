@@ -123,7 +123,7 @@ jobs:
         shell: bash
         run: |
           shopt -s nullglob
-          files=(dist/*.dmg dist/*.exe dist/*.blockmap dist/latest*.yml)
+          files=(dist/*.dmg dist/*.zip dist/*.exe dist/*.blockmap dist/latest*.yml)
           echo "uploading: ${files[*]}"
           gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
         env:

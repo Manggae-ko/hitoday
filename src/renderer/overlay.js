@@ -73,8 +73,11 @@ const targetX = (actor, count) => (actor.spot !== null && actor.spot !== undefin
 let drag = null; // { startX, originX, moved, lastSent }
 let justDragged = false;
 
+/** Buttons that sit on my character (the hand picker) get the click, not drag or open-settings. */
+const fromControl = (event) => Boolean(event.target.closest && event.target.closest('button, .hand-picker'));
+
 function startDrag(actor, event) {
-  if (event.button !== 0) return;
+  if (event.button !== 0 || fromControl(event)) return;
   actor.character.root.setPointerCapture(event.pointerId);
   actor.character.root.getAnimations().forEach((a) => a.cancel()); // stop any walk in progress
   drag = { actor, startX: event.clientX, originX: actor.character.x, moved: false, lastSent: 0 };
@@ -120,7 +123,8 @@ function createActor(member, isMe) {
   zzz.textContent = 'z z';
   character.root.append(zzz);
   const actor = { character, chain: Promise.resolve(), bubbleTimer: null, index: -1, spot: null };
-  character.root.addEventListener('click', () => {
+  character.root.addEventListener('click', (event) => {
+    if (fromControl(event)) return;
     if (justDragged) {
       justDragged = false;
       return;

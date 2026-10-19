@@ -281,7 +281,8 @@ app.whenReady().then(() => {
   overlay = createOverlayWindow();
   const tray = createTray({ onOpen: openControl, onQuit: () => app.quit() });
   // Installed copies update themselves from GitHub Releases (not while developing).
-  if (app.isPackaged) {
+  // Microsoft Store installs are updated by the Store instead.
+  if (app.isPackaged && !process.windowsStore) {
     const { autoUpdater } = require('electron-updater');
     startUpdater({
       autoUpdater,

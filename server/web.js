@@ -7,6 +7,7 @@ const crypto = require('node:crypto');
 const { renderStatsPage } = require('./stats-page');
 
 const PAGE_PATH = path.join(__dirname, '..', 'web', 'index.html');
+const PRIVACY_PATH = path.join(__dirname, '..', 'web', 'privacy.html');
 const REPO_PATTERN = /^[\w.-]+\/[\w.-]+$/;
 const GA_ID_PATTERN = /^G-[A-Z0-9]{4,16}$/;
 const MIN_STATS_TOKEN_LENGTH = 16;
@@ -94,6 +95,7 @@ function createWebHandler({
   statsToken = process.env.STATS_TOKEN,
 } = {}) {
   const page = fs.readFileSync(PAGE_PATH, 'utf8');
+  const privacy = fs.readFileSync(PRIVACY_PATH, 'utf8');
   const sprites = loadSprites();
   const analytics = GA_ID_PATTERN.test(gaId || '') ? gaId : null;
   // A short stats password would be guessable; refuse to enable the page with one.
@@ -129,6 +131,14 @@ function createWebHandler({
         // A per-visit nonce means the page can't be shared from a cache.
         'cache-control': analytics ? 'no-store' : 'public, max-age=300',
       }, html);
+    }
+    if (pathname === '/privacy') {
+      // Plain page: no analytics, no scripts.
+      return reply(200, {
+        'content-type': 'text/html; charset=utf-8',
+        'content-security-policy': pageCsp(null),
+        'cache-control': 'public, max-age=300',
+      }, privacy);
     }
     if (pathname === '/stats' || pathname === '/stats.json') {
       // Without a configured token the page doesn't exist at all.

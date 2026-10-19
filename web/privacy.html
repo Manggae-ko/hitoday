@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>작당모의 개인정보처리방침</title>
+    <meta name="description" content="작당모의가 어떤 정보를 주고받고 얼마나 보관하는지 설명해요." />
+    <style>
+      :root {
+        --paper: #eef1ff;
+        --paper-raised: #ffffff;
+        --ink: #1b1f3b;
+        --ink-soft: #545b7c;
+        --accent: #ffd23f;
+        --line: #1b1f3b;
+        --dots: rgb(27 31 59 / 0.08);
+        --font: "Apple SD Gothic Neo", "Pretendard", "Malgun Gothic", system-ui, sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root { --paper: #131733; --paper-raised: #1d2246; --ink: #eef1ff; --ink-soft: #a9b0d4; --line: #eef1ff; --dots: rgb(238 241 255 / 0.07); }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; font-family: var(--font); color: var(--ink); line-height: 1.7; word-break: keep-all;
+        background: radial-gradient(var(--dots) 1.2px, transparent 1.4px) 0 0 / 16px 16px, var(--paper);
+      }
+      main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+      a { color: inherit; text-underline-offset: 3px; }
+      .back { display: inline-block; margin-bottom: 20px; font-size: 0.9rem; color: var(--ink-soft); }
+      h1 { margin: 0 0 6px; font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.2rem); font-weight: 900; letter-spacing: -0.02em; }
+      .meta { margin: 0 0 28px; color: var(--ink-soft); font-size: 0.92rem; }
+      section {
+        margin: 0 0 14px; padding: 16px 18px; background: var(--paper-raised);
+        border: 2px solid var(--line); border-radius: 14px;
+      }
+      h2 { margin: 0 0 8px; font-size: 1.05rem; font-weight: 800; }
+      p, li { color: var(--ink-soft); }
+      p { margin: 0 0 8px; }
+      p:last-child { margin-bottom: 0; }
+      ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+      b { color: var(--ink); }
+      footer { margin-top: 28px; font-size: 0.85rem; color: var(--ink-soft); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="back" href="/">← 작당모의 홈</a>
+      <h1>개인정보처리방침</h1>
+      <p class="meta">시행일 2026년 10월 19일 · 운영 naego works</p>
+
+      <section>
+        <h2>한눈에 보기</h2>
+        <ul>
+          <li>회원가입이 없어요. 이메일, 전화번호, 실명을 받지 않아요.</li>
+          <li>내 화면 내용은 절대 보내지 않아요. 오가는 건 캐릭터, 닉네임, 짧은 말뿐이에요.</li>
+          <li>대화 내용은 서버 메모리에만 잠깐 있고, 디스크에 저장하지 않아요.</li>
+          <li>정보를 팔거나 광고에 쓰지 않아요.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>1. 앱이 서버로 보내는 정보</h2>
+        <ul>
+          <li><b>내 코드</b>: 앱이 처음 켜질 때 만드는 무작위 영문·숫자 6자리예요.</li>
+          <li><b>기기 키</b>: 다른 사람이 내 코드를 흉내 내지 못하게 하는 값이에요. 서버에는 원래 값이 아니라 되돌릴 수 없게 바꾼 값(해시)만 파일로 저장해요.</li>
+          <li><b>닉네임, 고른 캐릭터와 색, 화면 아래 내 캐릭터 위치, 들어가 있는 방 코드</b>: 같은 방 친구 화면에 나를 보여주는 데 써요. 서버 메모리에만 두고 디스크에 저장하지 않아요.</li>
+          <li><b>대화 메시지</b>: 같은 방 사람에게 전달해요. 나중에 들어온 친구가 볼 수 있게 방마다 최근 30개까지만 메모리에 두고, 서버가 다시 시작되면 사라져요.</li>
+          <li><b>직접 올린 캐릭터 그림</b>: 같은 방 친구에게 보여주려고 메모리에만 둬요. 서버가 다시 시작되면 사라지고, 앱이 다시 보내요.</li>
+          <li><b>미니게임 선택</b>(가위바위보 손, 반응속도 클릭 시각): 결과를 정하는 데만 쓰고 저장하지 않아요.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>2. 이용 통계와 접속 기록</h2>
+        <ul>
+          <li><b>이용 통계</b>: 날짜별 숫자만 세요(홈페이지 방문 수, 다운로드 수, 새 기기 수, 접속 수, 만든 방 수, 메시지 수, 게임 횟수, 최대 동시 접속 수). 닉네임, 코드, 메시지 내용, IP 주소는 통계에 남기지 않아요.</li>
+          <li><b>접속 기록</b>: 서버를 안전하게 운영하려고 웹 서버가 접속 시각, IP 주소, 요청한 주소를 기록해요. 정해진 용량(약 30MB)이 차면 오래된 기록부터 자동으로 지워져요.</li>
+          <li><b>운영자 알림</b>: 새 사용자가 처음 접속하거나 방이 만들어지거나 친구가 방에 들어오면, 운영자 전용 채팅 채널(Discord)로 닉네임이 담긴 짧은 알림이 가요. 방 코드와 대화 내용은 보내지 않아요.</li>
+          <li><b>홈페이지 방문 통계</b>: 홈페이지(jakdang.naegoworks.com)에서만 Google Analytics를 써요. 앱 안에서는 쓰지 않아요.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>3. 정보를 맡기는 곳</h2>
+        <p>다른 회사에 정보를 팔거나 넘기지 않아요. 서비스를 돌리려고 아래 서비스를 써요.</p>
+        <ul>
+          <li><b>네이버 클라우드</b>(한국): 작당모의 서버</li>
+          <li><b>GitHub</b>: 설치 파일과 업데이트 파일 내려받기</li>
+          <li><b>Google Analytics</b>: 홈페이지 방문 통계</li>
+          <li><b>Discord</b>: 운영자 알림(닉네임)</li>
+          <li><b>Microsoft Store</b>: 스토어에서 설치한 경우 설치와 업데이트</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>4. 지우고 싶을 때</h2>
+        <ul>
+          <li>앱을 지우면 내 컴퓨터에 있던 코드, 닉네임, 캐릭터 그림이 함께 지워져요.</li>
+          <li>방에서 나가면 그 방 친구 화면에서 내 캐릭터가 사라져요.</li>
+          <li>서버에 남은 기기 키 해시를 지우고 싶으면 앱 설정 창에 보이는 내 코드와 함께 아래 메일로 알려 주세요. 확인 후 지워 드려요.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>5. 문의</h2>
+        <p>개인정보 관련 문의와 요청은 <a href="mailto:contact@naegoworks.com">contact@naegoworks.com</a>으로 보내 주세요.</p>
+        <p>만 14세 미만이라면 보호자와 함께 읽고 사용해 주세요. 이 방침이 바뀌면 이 페이지에 시행일과 함께 알려 드려요.</p>
+      </section>
+
+      <footer>© 2026 naego works</footer>
+    </main>
+  </body>
+</html>

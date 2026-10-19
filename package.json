@@ -93,6 +93,17 @@
       "oneClick": true,
       "perMachine": false
     },
+    "appx": {
+      "applicationId": "Jakdang",
+      "displayName": "작당모의",
+      "backgroundColor": "transparent",
+      "languages": [
+        "ko-KR",
+        "en-US"
+      ],
+      "addAutoLaunchExtension": true,
+      "artifactName": "Jakdang-Store.${ext}"
+    },
     "publish": {
       "provider": "github",
       "releaseType": "release",

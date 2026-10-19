@@ -129,6 +129,25 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Microsoft Store package: built only once the Store identity is set as repo variables
+      # (Partner Center → Product identity). It is uploaded to Partner Center by hand, so it
+      # goes to the run's artifacts, not to the public release. The Store signs it.
+      - name: Build the Microsoft Store package
+        if: matrix.os == 'windows-latest' && vars.APPX_IDENTITY_NAME != ''
+        shell: bash
+        run: >
+          npx electron-builder --win appx --publish never
+          -c.appx.identityName="${{ vars.APPX_IDENTITY_NAME }}"
+          -c.appx.publisher="${{ vars.APPX_PUBLISHER }}"
+          -c.appx.publisherDisplayName="${{ vars.APPX_PUBLISHER_DISPLAY_NAME }}"
+      - name: Keep the Store package with this run
+        if: matrix.os == 'windows-latest' && vars.APPX_IDENTITY_NAME != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: microsoft-store-package
+          path: dist/*.appx
+          if-no-files-found: error
+
   publish:
     needs: build
     runs-on: ubuntu-latest

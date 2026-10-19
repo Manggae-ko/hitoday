@@ -22,6 +22,20 @@ test('serves the download page with security headers', () =>
     assert.match(await res.text(), /맥 다운로드/);
   }));
 
+test('the privacy policy has its own script-free page, linked from the download page', () =>
+  withRelay({ gaId: 'G-ABC123XYZ' }, async (base) => {
+    const res = await fetch(`${base}/privacy`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type'), /text\/html/);
+    assert.match(res.headers.get('content-security-policy'), /default-src 'none'/);
+    assert.ok(!res.headers.get('content-security-policy').includes('script-src'), 'no scripts, even with analytics on');
+    const html = await res.text();
+    assert.match(html, /개인정보처리방침/);
+    assert.match(html, /contact@naegoworks\.com/);
+    assert.ok(!html.includes('googletagmanager'));
+    assert.match(await (await fetch(`${base}/`)).text(), /href="\/privacy"/);
+  }));
+
 test('download buttons redirect to the latest GitHub release asset', () =>
   withRelay({ repo: 'dong/jakdang' }, async (base) => {
     const mac = await fetch(`${base}/download/mac`, { redirect: 'manual' });

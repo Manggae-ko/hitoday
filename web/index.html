@@ -103,6 +103,9 @@
       details { padding: 12px 16px; background: var(--paper-raised); border: 2px solid var(--ink); border-radius: 14px; }
       summary { cursor: pointer; font-weight: 800; }
       details p { margin: 8px 0 0; color: var(--ink-soft); }
+      .help-steps { margin: 10px 0 0; padding-left: 1.3em; display: grid; gap: 6px; color: var(--ink-soft); }
+      .help-steps b, details p b { color: var(--ink); }
+      .steps a { color: inherit; text-underline-offset: 3px; }
       footer { margin-top: 56px; font-size: 0.85rem; color: var(--ink-soft); }
       .analytics-note { margin: 48px 0 -40px; font-size: 0.8rem; color: var(--ink-soft); }
 
@@ -153,20 +156,27 @@
           <a class="btn" href="/download/mac">맥 다운로드</a>
           <a class="btn secondary" href="/download/win">윈도우 다운로드</a>
           <a class="alt-link" href="/download/mac-intel">Intel 맥이라면</a>
+          <a class="alt-link" href="#win-help">윈도우 설치 도움말</a>
         </div>
       </section>
 
       <ol class="steps">
-        <li><strong>설치하기</strong><span>맥은 응용&nbsp;프로그램 폴더로 끌어다&nbsp;놓고, 윈도우는 더블클릭 한&nbsp;번이면&nbsp;끝.</span></li>
+        <li><strong>설치하기</strong><span>맥은 응용&nbsp;프로그램 폴더로 끌어다&nbsp;놓으면&nbsp;끝. 윈도우는 처음 한&nbsp;번 경고가 떠요 (<a href="#win-help">설치&nbsp;도움말</a>).</span></li>
         <li><strong>방 만들고 초대하기</strong><span>"새&nbsp;방&nbsp;만들기"를 누르고 초대&nbsp;코드를 단톡방에 보내요. 최대&nbsp;12명.</span></li>
         <li><strong>그냥 켜두기</strong><span>컴퓨터를 켜면 알아서 실행돼요. 앱이 꺼진 친구는 화면에서 졸고&nbsp;있어요.</span></li>
       </ol>
 
       <section class="faq" aria-labelledby="faq-title">
         <h2 id="faq-title">자주 묻는 것</h2>
-        <details>
-          <summary>윈도우에서 처음 열 때 경고가 떠요</summary>
-          <p>"Windows의 PC 보호" 창이 뜨면 <b>추가 정보</b> → <b>실행</b>을 눌러 주세요. 한 번만 허용하면 다음부터는 바로 열려요. 맥 버전은 Apple 공증을 받아서 바로 열려요.</p>
+        <details id="win-help" open>
+          <summary>윈도우에서 받거나 설치할 때 경고가 떠요</summary>
+          <p>아직 받은 사람이 적은 새 앱이라 윈도우가 "확인하고 여세요"라고 알려주는 거예요. 아래 순서로 한 번만 허용하면 다음부터는 바로 열려요.</p>
+          <ol class="help-steps">
+            <li><b>엣지</b>에서 "일반적으로 다운로드되지 않습니다"가 뜨면: 파일 옆 <b>⋯</b> → <b>유지</b> → <b>자세히 보기</b> → <b>그래도 유지</b></li>
+            <li><b>크롬</b>에서 경고가 뜨면: 다운로드 목록에서 <b>유지</b>(또는 <b>다운로드</b>)를 눌러요</li>
+            <li>설치 파일을 열 때 "Windows의 PC 보호" 창이 뜨면: <b>추가 정보</b> → <b>실행</b></li>
+          </ol>
+          <p>맥 버전은 Apple 공증을 받아서 경고 없이 바로 열려요.</p>
         </details>
         <details>
           <summary>회사 컴퓨터에서도 되나요?</summary>

@@ -12,6 +12,7 @@ services:
       GITHUB_REPO: ${GITHUB_REPO:-}
       GA_MEASUREMENT_ID: ${GA_MEASUREMENT_ID:-}
       STATS_TOKEN: ${STATS_TOKEN:-}
+      NOTIFY_WEBHOOK_URL: ${NOTIFY_WEBHOOK_URL:-}
     volumes:
       - relay-data:/data
     expose:

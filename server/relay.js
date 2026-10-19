@@ -10,6 +10,7 @@ const { createWebHandler } = require('./web');
 const { createGameHost } = require('./game-host');
 const { createDeviceKeys } = require('./device-keys');
 const { createStats } = require('./stats');
+const { createNotifier } = require('./notify');
 
 const MIN_SAY_INTERVAL_MS = 800; // fast enough to chat, slow enough to stop spam
 const MAX_PAYLOAD_BYTES = 64 * 1024; // room for one base64 character image
@@ -17,6 +18,9 @@ const MAX_ROOMS = 10_000;
 const MAX_AVATARS = 5_000; // 32KB each at most → ~160MB worst case
 const MIN_AVATAR_INTERVAL_MS = 2_000;
 const MIN_MOVE_INTERVAL_MS = 100;
+
+/** A name as plain text in a chat message (no bold, links or mentions). */
+const plain = (name) => String(name || '이름 없음').replace(/[`*_~|>@\[\]()#\\]/g, '');
 
 function send(ws, payload) {
   if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(payload));
@@ -32,6 +36,7 @@ function createRelay({
   dataDir, // where device-key hashes and daily stats are kept; omit to keep them in memory only
   gaId, // Google Analytics id for the download page (defaults to GA_MEASUREMENT_ID)
   statsToken, // password for /stats (defaults to STATS_TOKEN)
+  notify = () => {}, // tells the operator about new people and rooms (see notify.js)
 } = {}) {
   const online = new Map(); // user code -> ws
   const rooms = new Map(); // room code -> { members: Map(user code -> { name, joinedAt }), history: [] }
@@ -135,7 +140,10 @@ function createRelay({
       ws.close(4001, verdict);
       return;
     }
-    if (verdict === 'claimed') stats.record('new_device');
+    if (verdict === 'claimed') {
+      stats.record('new_device');
+      notify(`🐥 새 사용자가 처음 접속했어요: ${plain(msg.name)}`);
+    }
     stats.record('connect');
     const previous = online.get(msg.code);
     if (previous && previous !== ws) previous.close(4000, 'replaced');
@@ -187,12 +195,15 @@ function createRelay({
   const HANDLERS = {
     'create-room': (ws) => {
       const reason = enterRoom(ws.user.code, ws.user, newRoomCode(), { create: true });
-      if (reason) send(ws, { type: 'error', reason });
-      else stats.record('room_created');
+      if (reason) return send(ws, { type: 'error', reason });
+      stats.record('room_created');
+      return notify(`🏠 새 방이 생겼어요 (만든 사람: ${plain(ws.user.name)})`);
     },
     'join-room': (ws, msg) => {
       const reason = enterRoom(ws.user.code, ws.user, msg.room, { create: false });
-      if (reason) send(ws, { type: 'error', reason });
+      if (reason) return send(ws, { type: 'error', reason });
+      const count = rooms.get(roomOf.get(ws.user.code)).members.size;
+      return notify(`👥 ${plain(ws.user.name)}님이 방에 들어왔어요 (지금 ${count}명)`);
     },
     'leave-room': (ws) => {
       leaveRoom(ws.user.code);
@@ -263,8 +274,19 @@ module.exports = { createRelay, MIN_SAY_INTERVAL_MS };
 if (require.main === module) {
   const port = Number(process.env.PORT) || 8787;
   const dataDir = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
-  const relay = createRelay({ port, dataDir, log: (line) => process.stdout.write(`${line}\n`) });
-  // Save device keys before Docker stops the container.
-  ['SIGTERM', 'SIGINT'].forEach((signal) => process.on(signal, () => relay.close().then(() => process.exit(0))));
-  relay.ready.then(() => process.stdout.write(`작당모의 relay listening on :${port}\n`));
+  const log = (line) => process.stdout.write(`${line}\n`);
+  const notifier = createNotifier({ url: process.env.NOTIFY_WEBHOOK_URL, log });
+  const relay = createRelay({ port, dataDir, log, notify: notifier.notify });
+  const version = process.env.GIT_COMMIT || 'unknown';
+  // Save device keys before Docker stops the container, and say we're going.
+  ['SIGTERM', 'SIGINT'].forEach((signal) => process.on(signal, async () => {
+    notifier.notify(`⏹ 서버가 꺼져요 (업데이트나 재시작, 버전 ${version})`);
+    await notifier.flush();
+    await relay.close();
+    process.exit(0);
+  }));
+  relay.ready.then(() => {
+    log(`작당모의 relay listening on :${port}`);
+    notifier.notify(`🔄 서버가 켜졌어요 (버전 ${version})`, { now: true });
+  });
 }

@@ -121,6 +121,18 @@ bash ~/jakdang/deploy/install-auto-update.sh
 2. 측정 ID(`G-XXXXXXXXXX`)를 `.env`의 `GA_MEASUREMENT_ID=`에 넣고 `docker compose up -d`
 3. 다운로드 버튼 클릭은 `download` 이벤트(platform: mac/win)로 들어가요. 페이지 하단에 GA 사용 안내 문구가 자동으로 붙어요.
 
+## 8. 알림 받기 (디스코드)
+
+서버가 디스코드 채널에 짧게 알려줘요: 🐥 새 사용자 첫 접속, 🏠 새 방, 👥 방에 친구 입장, 🔄 서버 켜짐, ⏹ 서버 꺼짐. 1분 안에 몰린 알림은 한 메시지로 묶어서 보내요. 닉네임은 들어가지만 방 코드와 대화 내용은 보내지 않아요.
+
+1. 디스코드 채널 설정 → 연동 → 웹후크 → 새 웹후크 → 웹후크 URL 복사
+2. `~/jakdang/deploy/.env`에 `NOTIFY_WEBHOOK_URL=<복사한 주소>` 추가 → `docker compose up -d`
+3. "🔄 서버가 켜졌어요" 메시지가 오면 연결된 거예요.
+
+웹후크 주소를 아는 사람은 누구나 그 채널에 글을 쓸 수 있으니 비밀번호처럼 다뤄요. 새어 나갔으면 디스코드에서 그 웹후크를 지우고 새로 만들어 바꾸면 돼요.
+
+**서버가 죽었을 때**는 서버가 스스로 알릴 수 없어서 바깥에서 지켜봐야 해요. [UptimeRobot](https://uptimerobot.com)(무료)에 HTTP(s) 모니터로 `https://jakdang.naegoworks.com/health`를 5분 간격으로 등록하고, 알림 연락처에 같은 디스코드 웹후크를 추가하면 같은 채널로 와요.
+
 ## 운영 메모
 
 - **바로 업데이트**: `bash ~/jakdang/deploy/auto-update.sh` (새 커밋이 있을 때만 다시 빌드해요)

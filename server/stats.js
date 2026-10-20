@@ -16,6 +16,7 @@ const EVENTS = [
   'game_lottery',
   'game_rps',
   'game_reaction',
+  'game_race',
 ];
 const KEEP_DAYS = 90;
 const SAVE_EVERY_MS = 60_000;

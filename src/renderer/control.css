@@ -213,11 +213,12 @@ input:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .member .sprite { --size: 24px; }
 .member .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-soft); opacity: 0.4; }
 .member.is-online .dot { background: var(--ok); opacity: 1; }
+.member.is-away .dot { background: #e8b100; }
 .member:not(.is-online) { color: var(--ink-soft); }
 .member:not(.is-online) .sprite { opacity: 0.55; filter: saturate(0.4); }
 .member.is-me { background: var(--mint); }
 
-.games { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 3px; }
+.games { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 3px; }
 .arcade {
   display: grid;
   justify-items: center;
@@ -235,6 +236,7 @@ input:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .arcade:nth-child(1) { background: #ffe1cf; }
 .arcade:nth-child(2) { background: #fff0a6; }
 .arcade:nth-child(3) { background: #d6ecff; }
+.arcade:nth-child(4) { background: #d4f2dc; }
 .arcade:hover:not(:disabled) { transform: translateY(-3px); }
 .arcade:active:not(:disabled) { transform: translateY(1px); }
 @media (prefers-color-scheme: dark) {

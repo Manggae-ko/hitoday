@@ -54,3 +54,9 @@ test('invalid JSON and unknown types are rejected', () => {
   assert.deepEqual(parse({ type: 'hack' }), { ok: false, error: 'unknown-type' });
   assert.deepEqual(parseClientMessage('null'), { ok: false, error: 'bad-json' });
 });
+
+test('presence only accepts a true/false away flag; the race is a known game', () => {
+  assert.deepEqual(parse({ type: 'presence', away: true }), { ok: true, value: { type: 'presence', away: true } });
+  assert.equal(parse({ type: 'presence', away: 'yes' }).ok, false);
+  assert.equal(parse({ type: 'start-game', game: 'race' }).ok, true);
+});

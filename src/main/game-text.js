@@ -1,7 +1,7 @@
 // Turns a game event from the server into the words shown on screen and in the chat.
 
 const HAND_EMOJI = { rock: '✊', paper: '✋', scissors: '✌️' };
-const GAME_TITLE = { lottery: '☕ 커피 뽑기', rps: '✊ 가위바위보', reaction: '⚡ 반응속도' };
+const GAME_TITLE = { lottery: '☕ 커피 뽑기', rps: '✊ 가위바위보', reaction: '⚡ 반응속도', race: '🏁 달리기 경주' };
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 const seconds = (ms) => `${(ms / 1000).toFixed(2)}초`;
@@ -27,6 +27,14 @@ function describeGame(msg, nameOf) {
   const title = GAME_TITLE[msg.game];
   if (msg.game === 'lottery') {
     return { banner: `${title} 중… (${nameOf(msg.by)}님이 시작)`, outcome: `☕ 오늘 커피는 ${nameOf(msg.picked)}!` };
+  }
+  if (msg.game === 'race') {
+    const first = msg.order[0];
+    const last = msg.order[msg.order.length - 1];
+    return {
+      banner: `${title}! 꼴찌가 커피 쏘기 (${nameOf(msg.by)}님이 시작)`,
+      outcome: first ? `${title} · 1등 ${nameOf(first)} · 꼴찌 ${nameOf(last)} ☕ 커피 당첨` : `${title} · 아무도 안 달렸어요`,
+    };
   }
   if (msg.game === 'rps') {
     if (msg.phase === 'pick') {

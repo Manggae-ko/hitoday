@@ -72,7 +72,7 @@ function parseSay(data) {
   return message ? pass({ type: 'say', message }) : fail('empty-message');
 }
 
-const GAMES = ['lottery', 'rps', 'reaction'];
+const GAMES = ['lottery', 'rps', 'reaction', 'race'];
 const RPS_HANDS = ['rock', 'paper', 'scissors'];
 
 function parseStartGame(data) {
@@ -101,9 +101,15 @@ function parseMove(data) {
   return x === null ? fail('bad-spot') : pass({ type: 'move', x });
 }
 
+/** Stepped away (idle or screen locked) or back. */
+function parsePresence(data) {
+  return typeof data.away === 'boolean' ? pass({ type: 'presence', away: data.away }) : fail('bad-presence');
+}
+
 const PARSERS = {
   hello: parseHello,
   move: parseMove,
+  presence: parsePresence,
   'set-avatar': parseSetAvatar,
   'create-room': () => pass({ type: 'create-room' }),
   'join-room': parseJoin,

@@ -37,4 +37,27 @@ function rankReaction(goAt, taps) {
   return { ranking, faults };
 }
 
-module.exports = { drawLottery, judgeRps, rankReaction, RPS_HANDS: Object.keys(RPS_BEATS) };
+/**
+ * Race along the bottom of the screen: each runner's time at every quarter of the track
+ * (cumulative ms), so speeds change mid-race and overtakes happen. Same plan on every screen.
+ * Finishing order is by total time; ties keep the order players were listed in.
+ */
+const RACE_LEGS = 4;
+const RACE_LEG_MIN_MS = 1_000;
+const RACE_LEG_SPREAD_MS = 1_000; // each quarter takes 1.0–2.0 s, so a race is 4–8 s
+
+function planRace(players, randomInt) {
+  const race = players.map((code) => {
+    let t = 0;
+    const legs = Array.from({ length: RACE_LEGS }, () => {
+      t += RACE_LEG_MIN_MS + randomInt(RACE_LEG_SPREAD_MS + 1);
+      return t;
+    });
+    return { code, legs };
+  });
+  const finish = (code) => race.find((r) => r.code === code).legs[RACE_LEGS - 1];
+  const order = [...players].sort((a, b) => finish(a) - finish(b) || players.indexOf(a) - players.indexOf(b));
+  return { race, order };
+}
+
+module.exports = { drawLottery, judgeRps, rankReaction, planRace, RACE_LEGS, RPS_HANDS: Object.keys(RPS_BEATS) };

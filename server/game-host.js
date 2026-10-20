@@ -1,7 +1,7 @@
 // Runs one mini-game at a time per room: timers, collecting moves, announcing results.
 // Outcomes come from ./games.js so they're identical on every screen.
 
-const { drawLottery, judgeRps, rankReaction, RPS_HANDS } = require('./games');
+const { drawLottery, judgeRps, rankReaction, planRace, RPS_HANDS } = require('./games');
 
 const DEFAULT_TIMINGS = {
   rpsMs: 10_000, // time to pick a hand
@@ -38,6 +38,10 @@ function createGameHost({ broadcast, now, randomInt, timings = {} }) {
       // Instant: the spotlight animation on each screen is the suspense.
       const { picked, bounce } = drawLottery(game.players, randomInt);
       announce(roomCode, game, 'result', { picked, bounce });
+    },
+    race(roomCode, game) {
+      // Instant too: the run across every screen is the show.
+      announce(roomCode, game, 'result', planRace(game.players, randomInt));
     },
     rps(roomCode, game) {
       Object.assign(game, { choices: {} });

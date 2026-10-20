@@ -45,6 +45,8 @@ function createOverlayWindow() {
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   // Clicks pass through to the desktop except where a character is (see overlay.js).
   win.setIgnoreMouseEvents(true, { forward: true });
+  // Friends' bubbles never show up in screen shares, recordings or screenshots.
+  win.setContentProtection(true);
   lockDown(win);
   win.loadFile(path.join(RENDERER_DIR, 'overlay.html'));
 
@@ -79,6 +81,7 @@ function createControlWindow() {
       win.hide();
     }
   });
+  win.setContentProtection(true); // the chat stays out of screen shares too
   lockDown(win);
   win.loadFile(path.join(RENDERER_DIR, 'control.html'));
   return win;

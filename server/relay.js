@@ -46,6 +46,7 @@ function createRelay({
   const lastAvatarAt = new Map(); // user code -> timestamp
   const lastMoveAt = new Map(); // user code -> timestamp
   const pendingMoves = new Map(); // user code -> timer for a held-back move
+  const away = new Set(); // user codes whose computer has been idle or locked
 
   const deviceKeys = createDeviceKeys({ file: dataDir && path.join(dataDir, 'device-keys.json'), log });
   const stats = createStats({
@@ -70,6 +71,7 @@ function createRelay({
           x: m.x ?? null,
           color: m.color,
           online: online.has(code),
+          away: online.has(code) && away.has(code),
           avatar: avatar ? avatar.version : null,
           avatarKind: avatar ? avatar.kind : null,
         };
@@ -148,6 +150,7 @@ function createRelay({
     const previous = online.get(msg.code);
     if (previous && previous !== ws) previous.close(4000, 'replaced');
     ws.user = { code: msg.code, name: msg.name, character: msg.character, x: msg.x };
+    away.delete(msg.code); // the app tells us again if it's still idle
     online.set(msg.code, ws);
     stats.notePeak(online.size);
     send(ws, { type: 'welcome', code: msg.code });
@@ -211,6 +214,14 @@ function createRelay({
     },
     say: handleSay,
     move: handleMove,
+    presence: (ws, msg) => {
+      const { code } = ws.user;
+      if (away.has(code) === msg.away) return;
+      if (msg.away) away.add(code);
+      else away.delete(code);
+      const roomCode = roomOf.get(code);
+      if (roomCode) broadcastState(roomCode);
+    },
     'set-avatar': (ws, msg) => {
       const { code } = ws.user;
       if (now() - (lastAvatarAt.get(code) || 0) < MIN_AVATAR_INTERVAL_MS) return send(ws, { type: 'error', reason: 'too-fast' });
@@ -247,6 +258,7 @@ function createRelay({
     ws.on('close', () => {
       if (!ws.user || online.get(ws.user.code) !== ws) return;
       online.delete(ws.user.code);
+      away.delete(ws.user.code);
       const roomCode = roomOf.get(ws.user.code);
       if (roomCode) broadcastState(roomCode); // show them as asleep
     });

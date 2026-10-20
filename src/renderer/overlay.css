@@ -136,6 +136,11 @@ body {
 }
 .is-asleep .zzz { opacity: 0.7; animation: drift 2.4s ease-in-out infinite; }
 
+/* Stepped away (idle or screen locked): dozing in place, but still "here". */
+.is-away .figure { --row: 3; --frames: 2; --speed: 1.8s; }
+.is-away .zzz { opacity: 0.8; animation: drift 2.4s ease-in-out infinite; }
+.is-away .tag::after { content: " · 자리비움"; font-weight: 400; }
+
 /* --- mini-games ---------------------------------------------------------- */
 
 /* Big sticker sign floating above the strip, right-aligned over my corner. */

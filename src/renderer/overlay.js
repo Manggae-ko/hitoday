@@ -62,7 +62,11 @@ async function walk(character, toX) {
 
 /** Runs one actor's moves in order, so a new move never cuts into a walk midway. */
 function perform(actor, move) {
-  actor.chain = actor.chain.then(move).catch((err) => console.error('stage move failed', err));
+  // A race bumps the epoch: moves queued before it are stale and skipped.
+  const epoch = actor.epoch;
+  actor.chain = actor.chain
+    .then(() => (epoch === actor.epoch ? move() : undefined))
+    .catch((err) => console.error('stage move failed', err));
 }
 
 /** Where someone should stand: their chosen spot, or their automatic place in line. */
@@ -77,7 +81,7 @@ let justDragged = false;
 const fromControl = (event) => Boolean(event.target.closest && event.target.closest('button, .hand-picker'));
 
 function startDrag(actor, event) {
-  if (event.button !== 0 || fromControl(event)) return;
+  if (event.button !== 0 || fromControl(event) || actor.racing) return;
   actor.character.root.setPointerCapture(event.pointerId);
   actor.character.root.getAnimations().forEach((a) => a.cancel()); // stop any walk in progress
   drag = { actor, startX: event.clientX, originX: actor.character.x, moved: false, lastSent: 0 };
@@ -122,7 +126,7 @@ function createActor(member, isMe) {
   zzz.className = 'zzz';
   zzz.textContent = 'z z';
   character.root.append(zzz);
-  const actor = { character, chain: Promise.resolve(), bubbleTimer: null, index: -1, spot: null };
+  const actor = { character, chain: Promise.resolve(), epoch: 0, bubbleTimer: null, index: -1, spot: null };
   character.root.addEventListener('click', (event) => {
     if (fromControl(event)) return;
     if (justDragged) {
@@ -172,6 +176,7 @@ function updateLineup({ me, members }) {
     actor.character.setLabel(member.name);
     actor.character.setLook(colorFor(member.code, member.color), member.avatar, member.character);
     actor.character.root.classList.toggle('is-asleep', !member.online);
+    actor.character.root.classList.toggle('is-away', member.online && member.away === true);
     if (drag && drag.actor === actor) return;
     const target = targetX(actor, count);
     if (isNew) {
@@ -190,7 +195,7 @@ function updateLineup({ me, members }) {
 function say(code, text, ms = BUBBLE_MS) {
   const actor = actors.get(code);
   if (!actor) return;
-  perform(actor, () => {
+  const show = () => {
     clearTimeout(actor.bubbleTimer);
     actor.character.say(text);
     actor.character.pose('is-waving');
@@ -198,7 +203,10 @@ function say(code, text, ms = BUBBLE_MS) {
       actor.character.hush();
       actor.character.pose();
     }, ms);
-  });
+  };
+  // Racers talk at the finish line right away instead of waiting to walk home.
+  if (actor.racing) show();
+  else perform(actor, show);
 }
 
 function memberSays({ from, message }) {
@@ -207,7 +215,103 @@ function memberSays({ from, message }) {
   say(from, message);
 }
 
+// --- race ------------------------------------------------------------------
+// Runners line up on the left, one lane each, and run right on the server's split times
+// (so every screen shows the same race). Afterwards everyone walks back to their spot.
+
+const LANE_PX = 26;
+const BANNER_CLEAR_PX = 320; // room on the right for the result sign
+const PODIUM_GAP_PX = 104; // finishers stand side by side, first place nearest the line
+const PODIUM_STEP_MS = 450;
+const RACE_BASE_BOTTOM_PX = 6; // .char sits 6px above the bottom edge
+let racers = []; // { actor, release }
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** After crossing the line, each runner steps back to a podium spot by finishing place. */
+async function toPodium(character, fromX, toX) {
+  if (toX !== fromX && !reducedMotion) {
+    character.face('left');
+    const step = character.root.animate(
+      [{ transform: `translateX(${fromX}px)` }, { transform: `translateX(${toX}px)` }],
+      { duration: PODIUM_STEP_MS, easing: 'ease-out', fill: 'forwards' },
+    );
+    await step.finished;
+    step.cancel();
+  }
+  place(character, toX);
+  character.root.style.bottom = ''; // off the lane, back on the ground next to the others
+  character.face('right');
+  character.pose();
+}
+
+function race(runners, delayMs, order = []) {
+  const startX = EDGE_INSET;
+  // Stop short of the right edge so the result sign doesn't cover the winners.
+  const finishX = Math.max(startX + CHAR_WIDTH * 2, window.innerWidth - EDGE_INSET - CHAR_WIDTH - BANNER_CLEAR_PX);
+  const podiumX = (code) => {
+    const rank = Math.max(0, order.indexOf(code));
+    return Math.max(EDGE_INSET, finishX - rank * PODIUM_GAP_PX);
+  };
+  const runs = runners.map(({ code, legs }, lane) => {
+    const actor = actors.get(code);
+    if (!actor) return null;
+    const { character } = actor;
+    character.root.getAnimations().forEach((a) => a.cancel());
+    clearTimeout(actor.bubbleTimer);
+    character.hush();
+    actor.racing = true;
+    actor.epoch += 1; // walks queued before the race are dropped; raceHome walks them home
+    // Anything else this actor does waits until the race is over and they're home.
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    actor.chain = actor.chain.then(() => gate);
+    racers = [...racers, { actor, release }];
+
+    character.root.style.bottom = `${RACE_BASE_BOTTOM_PX + lane * LANE_PX}px`; // a lane each, so nobody overlaps
+    character.root.style.zIndex = String(100 - lane);
+    place(character, startX);
+    character.face('right');
+    character.pose();
+    const total = legs[legs.length - 1];
+    if (reducedMotion) {
+      return wait(delayMs + total).then(() => toPodium(character, finishX, podiumX(code)));
+    }
+    setTimeout(() => character.pose('is-walking'), delayMs);
+    const quarter = (i) => startX + ((finishX - startX) * (i + 1)) / legs.length;
+    const animation = character.root.animate(
+      [
+        { transform: `translateX(${startX}px)`, offset: 0 },
+        ...legs.map((t, i) => ({ transform: `translateX(${quarter(i)}px)`, offset: t / total })),
+      ],
+      { duration: total, delay: delayMs, easing: 'linear', fill: 'forwards' },
+    );
+    return animation.finished.then(() => {
+      place(character, finishX);
+      animation.cancel();
+      return toPodium(character, finishX, podiumX(code));
+    });
+  });
+  return Promise.all(runs.filter(Boolean));
+}
+
+/** After the race: back out of the lanes and walk home. */
+function raceHome() {
+  const done = racers;
+  racers = [];
+  done.forEach(({ actor, release }) => {
+    const { character } = actor;
+    character.root.style.bottom = '';
+    character.root.style.zIndex = '';
+    actor.racing = false;
+    release();
+    perform(actor, () => walk(character, targetX(actor, lineup.length)));
+  });
+}
+
 const games = window.GameStage.createGameStage({
+  race,
+  raceHome,
   root: stage,
   actor: (code) => actors.get(code),
   say,

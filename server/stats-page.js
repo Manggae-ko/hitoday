@@ -11,6 +11,7 @@ const LABELS = {
   game_lottery: '커피 뽑기',
   game_rps: '가위바위보',
   game_reaction: '반응속도',
+  game_race: '달리기 경주',
   peak_online: '최대 동시 접속',
 };
 
@@ -33,7 +34,7 @@ function sparkline(days, key) {
 
 function renderStatsPage(report) {
   const { live, today, days, totals, keptDays } = report;
-  const games = (d) => (d.game_lottery || 0) + (d.game_rps || 0) + (d.game_reaction || 0);
+  const games = (d) => (d.game_lottery || 0) + (d.game_rps || 0) + (d.game_reaction || 0) + (d.game_race || 0);
   const downloads = (d) => (d.download_mac || 0) + (d.download_win || 0);
   const rows = days.map((d) => `
       <tr>

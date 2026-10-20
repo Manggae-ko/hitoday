@@ -12,12 +12,15 @@ const RESULT_LINGER_MS = 7_000;
 const BUBBLE_MS = 7_000;
 const SPOT_FAST_MS = 80;
 const SPOT_SLOW_MS = 420;
+const RACE_COUNTDOWN_MS = 2_000; // keep in step with src/main/main.js
+const COUNTDOWN = ['3…', '2…', '1…'];
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const seconds = (ms) => `${(ms / 1000).toFixed(2)}초`;
 
 /**
- * @param stage  { root, actor(code), say(code, text, ms), hushAll(), mark(code, cls, on), clearMarks(cls) }
+ * @param stage  { root, actor(code), say(code, text, ms), hushAll(), mark(code, cls, on), clearMarks(cls),
+ *                 race(runners, delayMs, order) → Promise, raceHome() }
  * @param api    window.jakdang
  */
 function createGameStage(stage, api) {
@@ -43,8 +46,36 @@ function createGameStage(stage, api) {
       banner.hidden = true;
       ['is-spot', 'is-picked', 'is-target', 'is-winner'].forEach((cls) => stage.clearMarks(cls));
       removePicker();
+      stage.raceHome();
       current = null;
     }, RESULT_LINGER_MS);
+  }
+
+  // --- race ---------------------------------------------------------------
+
+  async function playRace(msg) {
+    const stillOn = () => current && current.id === msg.id;
+    const finished = stage.race(msg.race, RACE_COUNTDOWN_MS, msg.order);
+    showBanner(msg.banner);
+    const step = RACE_COUNTDOWN_MS / (COUNTDOWN.length + 1);
+    for (const count of COUNTDOWN) {
+      await wait(step);
+      if (!stillOn()) return;
+      showBanner(count);
+    }
+    await wait(step);
+    if (!stillOn()) return;
+    showBanner('출발! 🏁', true);
+    await finished;
+    if (!stillOn()) return;
+    const last = msg.order.length - 1;
+    msg.order.forEach((code, i) => {
+      const line = i === 0 ? '1등! 🏁' : i === last ? '꼴찌… ☕' : `${i + 1}등`;
+      stage.say(code, line, BUBBLE_MS);
+      if (i === 0) stage.mark(code, 'is-winner', true);
+    });
+    showBanner(msg.outcome);
+    endSoon();
   }
 
   // --- coffee lottery -----------------------------------------------------
@@ -146,9 +177,11 @@ function createGameStage(stage, api) {
       ['is-spot', 'is-picked', 'is-target', 'is-winner'].forEach((cls) => stage.clearMarks(cls));
       stage.hushAll();
       removePicker();
+      stage.raceHome(); // a new game ends any race still lined up
       current = { id: msg.id, game: msg.game, tapHandler: null };
     }
     if (msg.game === 'lottery') return playLottery(msg);
+    if (msg.game === 'race') return playRace(msg);
     if (msg.game === 'rps') return msg.phase === 'pick' ? rpsPick(msg) : rpsResult(msg);
     if (msg.phase === 'ready') return reactionReady(msg);
     if (msg.phase === 'go') return showBanner(msg.banner, true);

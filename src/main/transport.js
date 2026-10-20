@@ -24,7 +24,10 @@ function parseMember(data) {
   const avatar = isAvatarVersion(data.avatar) ? data.avatar : null;
   const avatarKind = avatar && ['single', 'sheet'].includes(data.avatarKind) ? data.avatarKind : null;
   const character = isCharacter(data.character) ? data.character : DEFAULT_CHARACTER;
-  return { code: data.code, name, character, color, x: spotOrNull(data.x), online: data.online === true, avatar, avatarKind };
+  const online = data.online === true;
+  return {
+    code: data.code, name, character, color, x: spotOrNull(data.x), online, away: online && data.away === true, avatar, avatarKind,
+  };
 }
 
 function parseRoom(data) {
@@ -37,6 +40,15 @@ function parseRoom(data) {
 const PHASES = ['pick', 'ready', 'go', 'result'];
 const MAX_BOUNCE = 80;
 const codeList = (value, max = MAX_ROOM_MEMBERS) => (Array.isArray(value) ? value.slice(0, max).filter(isCode) : []);
+const RACE_LEGS = 4;
+const MAX_RACE_MS = 20_000;
+
+/** A runner's split times: four rising times (ms), the whole race well under MAX_RACE_MS. */
+function parseRunner(r) {
+  if (!r || !isCode(r.code) || !Array.isArray(r.legs) || r.legs.length !== RACE_LEGS) return null;
+  const rising = r.legs.every((t, i) => Number.isFinite(t) && t > (i ? r.legs[i - 1] : 0) && t <= MAX_RACE_MS);
+  return rising ? { code: r.code, legs: [...r.legs] } : null;
+}
 
 function parseGame(data) {
   if (!Number.isInteger(data.id) || !GAMES.includes(data.game) || !PHASES.includes(data.phase)) return null;
@@ -58,6 +70,8 @@ function parseGame(data) {
     winners: codeList(data.winners),
     ranking,
     faults: codeList(data.faults),
+    race: (Array.isArray(data.race) ? data.race : []).slice(0, MAX_ROOM_MEMBERS).map(parseRunner).filter(Boolean),
+    order: codeList(data.order),
   };
 }
 

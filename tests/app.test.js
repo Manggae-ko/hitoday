@@ -50,12 +50,17 @@ test('parseServerMessage drops malformed members and lines', () => {
   const room = parseServerMessage(JSON.stringify({
     type: 'room',
     room: 'ROOM22',
-    members: [{ code: 'AAAAAA', name: '동동', color: 3, online: true }, { code: 'bad', name: 'x' }],
+    members: [
+      { code: 'AAAAAA', name: '동동', color: 3, online: true },
+      { code: 'BBBBBB', name: '민지', online: true, away: true },
+      { code: 'bad', name: 'x' },
+    ],
     history: [{ from: 'AAAAAA', fromName: '동동', message: 'hi', at: 1 }, { from: 'AAAAAA' }],
   }));
-  assert.deepEqual(room.members, [{
-    code: 'AAAAAA', name: '동동', character: 'mochi', color: 3, x: null, online: true, avatar: null, avatarKind: null,
-  }]);
+  assert.deepEqual(room.members, [
+    { code: 'AAAAAA', name: '동동', character: 'mochi', color: 3, x: null, online: true, away: false, avatar: null, avatarKind: null },
+    { code: 'BBBBBB', name: '민지', character: 'mochi', color: null, x: null, online: true, away: true, avatar: null, avatarKind: null },
+  ]);
   assert.equal(room.history.length, 1);
 });
 

@@ -102,12 +102,13 @@ el.tabMe.addEventListener('click', () => selectTab('me'));
 // --- room ----------------------------------------------------------------------
 
 function renderMembers(members, myCode) {
-  const key = JSON.stringify(members.map((m) => [m.code, m.name, m.online, m.character, m.color, m.look && m.look.url.length]));
+  const key = JSON.stringify(members.map((m) => [m.code, m.name, m.online, m.away, m.character, m.color, m.look && m.look.url.length]));
   if (key === shownMembers) return;
   shownMembers = key;
   el.members.replaceChildren(...members.map((m) => {
-    const li = node('li', ['member', m.online ? 'is-online' : '', m.code === myCode ? 'is-me' : ''].join(' ').trim());
-    li.title = m.online ? '접속 중' : '앱 꺼짐';
+    const classes = ['member', m.online ? 'is-online' : '', m.away ? 'is-away' : '', m.code === myCode ? 'is-me' : ''];
+    const li = node('li', classes.join(' ').trim());
+    li.title = m.away ? '자리비움' : m.online ? '접속 중' : '앱 꺼짐';
     li.append(sprite(m), node('span', '', m.code === myCode ? `${m.name} (나)` : m.name), node('span', 'dot'));
     return li;
   }));

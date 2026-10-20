@@ -1,5 +1,7 @@
 const path = require('node:path');
-const { app, ipcMain, clipboard } = require('electron');
+const {
+  app, ipcMain, clipboard, globalShortcut, powerMonitor,
+} = require('electron');
 const {
   loadProfile, saveProfile, applyChanges, withRoom, withCharacter, withSpot, withNewIdentity,
 } = require('./profile');
@@ -7,6 +9,10 @@ const { createTransport } = require('./transport');
 const { createOverlayWindow, createControlWindow } = require('./windows');
 const { createTray } = require('./tray');
 const { startUpdater } = require('./updater');
+const { createPresence } = require('./presence');
+
+// Hides every character and bubble at once (and shows them again).
+const HIDE_SHORTCUT = 'CommandOrControl+Shift+.';
 const {
   cleanText, normalizeCode, isCode, spotOrNull, MAX_MESSAGE_LENGTH, ROOM_HISTORY, GAMES, RPS_HANDS,
 } = require('../../shared/protocol');
@@ -41,11 +47,26 @@ const ERROR_TEXT = {
 const QUIET_ERRORS = new Set(['no-game', 'not-player', 'bad-move']);
 // The lottery result arrives instantly; the chat waits until the spotlight has landed.
 const LOTTERY_REVEAL_MS = 4_500;
+// The race result too: after the countdown (same as src/renderer/games.js) and the slowest runner.
+const RACE_COUNTDOWN_MS = 2_000;
 
 const state = { profile: null, connected: false, notice: '', room: null, chat: [], game: null, ownAvatar: null };
 let overlay = null;
 let control = null;
 let transport = null;
+let presence = null;
+let hidden = false;
+let tray = null;
+
+/** The hide shortcut / tray item: every character and bubble disappears, or comes back. */
+function setHidden(value) {
+  hidden = value;
+  if (overlay && !overlay.isDestroyed()) {
+    if (hidden) overlay.hide();
+    else overlay.showInactive();
+  }
+  if (tray) tray.setHidden(hidden);
+}
 let avatarCache = null;
 
 function myColor() {
@@ -159,6 +180,7 @@ function handleGame(msg) {
   if (!finished || !text.outcome) return;
   const log = () => pushState({ chat: [...state.chat, { system: true, message: text.outcome }].slice(-ROOM_HISTORY) });
   if (msg.game === 'lottery') setTimeout(log, LOTTERY_REVEAL_MS);
+  else if (msg.game === 'race') setTimeout(log, RACE_COUNTDOWN_MS + Math.max(0, ...msg.race.map((r) => r.legs.at(-1))));
   else log();
 }
 
@@ -279,7 +301,14 @@ app.whenReady().then(() => {
   });
   registerIpc();
   overlay = createOverlayWindow();
-  const tray = createTray({ onOpen: openControl, onQuit: () => app.quit() });
+  const shortcutReady = globalShortcut.register(HIDE_SHORTCUT, () => setHidden(!hidden));
+  if (!shortcutReady) console.warn(`hide shortcut ${HIDE_SHORTCUT} is taken by another app; the tray item still works`);
+  tray = createTray({
+    onOpen: openControl,
+    onQuit: () => app.quit(),
+    onToggleHidden: () => setHidden(!hidden),
+    hideShortcutLabel: shortcutReady ? HIDE_SHORTCUT : null,
+  });
   // Installed copies update themselves from GitHub Releases (not while developing).
   // Microsoft Store installs are updated by the Store instead.
   if (app.isPackaged && !process.windowsStore) {
@@ -300,11 +329,22 @@ app.whenReady().then(() => {
       pushState({ connected });
       // The server keeps images in memory only, so re-send mine on every (re)connect.
       if (connected && state.ownAvatar) sendOwnAvatar();
+      // It forgets "away" on reconnect too.
+      if (connected && presence && presence.isAway()) transport.send({ type: 'presence', away: true });
     },
   });
+  // Away = no mouse/keyboard for a while, or the screen locked. Only idle time is read.
+  presence = createPresence({
+    getIdleSeconds: () => powerMonitor.getSystemIdleTime(),
+    onChange: (away) => transport.send({ type: 'presence', away }),
+  });
+  powerMonitor.on('lock-screen', () => presence.locked(true));
+  powerMonitor.on('unlock-screen', () => presence.locked(false));
   transport.connect(state.profile.serverUrl);
   if (!state.profile.room) openControl();
 });
+
+app.on('will-quit', () => globalShortcut.unregisterAll());
 
 app.on('before-quit', () => {
   if (control && !control.isDestroyed()) control.forceClose = true;

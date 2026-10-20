@@ -252,6 +252,36 @@ test('coffee lottery: everyone sees the same pick and spotlight path', () =>
     b.ws.close();
   }, { gameTimings: FAST_GAMES }));
 
+test('race: everyone sees the same split times and finishing order', () =>
+  withRelay(async (port) => {
+    const [a, b] = await roomOfTwo(port, 'RACE01');
+    a.say({ type: 'start-game', game: 'race' });
+    const seenByA = await a.next('game');
+    const seenByB = await b.next('game');
+    assert.equal(seenByA.phase, 'result');
+    assert.deepEqual(seenByA.race, seenByB.race);
+    assert.deepEqual(seenByA.order, seenByB.order);
+    assert.deepEqual([...seenByA.order].sort(), ['AAAAAA', 'BBBBBB']);
+    a.ws.close();
+    b.ws.close();
+  }, { gameTimings: FAST_GAMES }));
+
+test("away: stepping away shows on everyone's screen, and coming back clears it", () =>
+  withRelay(async (port) => {
+    const [a, b] = await roomOfTwo(port, 'AWAY01');
+    b.say({ type: 'presence', away: true });
+    const away = await a.next('room', (r) => r.members.some((m) => m.away));
+    assert.deepEqual(away.members.map((m) => [m.code, m.away]), [['AAAAAA', false], ['BBBBBB', true]]);
+    b.say({ type: 'presence', away: false });
+    await a.next('room', (r) => r.members.every((m) => !m.away));
+    b.say({ type: 'presence', away: true });
+    await a.next('room', (r) => r.members.some((m) => m.away));
+    b.ws.close();
+    const gone = await a.next('room', (r) => r.members.some((m) => !m.online));
+    assert.ok(gone.members.every((m) => !m.away), 'an app that closes is offline, not away');
+    a.ws.close();
+  }));
+
 test('rock-paper-scissors ends as soon as everyone picks', () =>
   withRelay(async (port) => {
     const [a, b] = await roomOfTwo(port, 'GAME02');

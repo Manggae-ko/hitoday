@@ -22,6 +22,27 @@ test('rock-paper-scissors: winners, draw, and nobody picking', () => {
   assert.match(describeGame({ ...base, game: 'rps', phase: 'pick', deadlineMs: 10_000 }, nameOf).banner, /10초/);
 });
 
+test('race names the winner and who buys the coffee', () => {
+  const text = describeGame({ ...base, game: 'race', phase: 'result', order: ['CCCCCC', 'AAAAAA', 'BBBBBB'] }, nameOf);
+  assert.equal(text.outcome, '🏁 달리기 경주 · 1등 하린 · 꼴찌 민지 ☕ 커피 당첨');
+  assert.match(text.banner, /동동님이 시작/);
+});
+
+test('race messages from the server are checked before use', () => {
+  const ok = parseServerMessage(JSON.stringify({
+    type: 'game', id: 4, game: 'race', phase: 'result', by: 'AAAAAA', players: ['AAAAAA', 'BBBBBB'],
+    race: [
+      { code: 'AAAAAA', legs: [1200, 2500, 3900, 5100] },
+      { code: 'BBBBBB', legs: [1000, 900, 3000, 4000] }, // not increasing: dropped
+      { code: 'CCCCCC', legs: [1000, 2000, 3000, 999999] }, // far too slow: dropped
+      { code: 'bad', legs: [1, 2, 3, 4] },
+    ],
+    order: ['AAAAAA', 'BBBBBB', 'nope'],
+  }));
+  assert.deepEqual(ok.race, [{ code: 'AAAAAA', legs: [1200, 2500, 3900, 5100] }]);
+  assert.deepEqual(ok.order, ['AAAAAA', 'BBBBBB']);
+});
+
 test('reaction race lists medals and false starts', () => {
   const text = describeGame({
     ...base,

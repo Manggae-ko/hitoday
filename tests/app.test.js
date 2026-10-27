@@ -99,6 +99,39 @@ test('friend images are downloaded once, checked, and refused if they do not mat
   await new Promise((r) => setTimeout(r, 20));
 });
 
+test('an app replaced by another copy of itself stops instead of reconnecting', async () => {
+  const relay = createRelay({ port: 0 });
+  await relay.ready;
+  const url = `ws://127.0.0.1:${relay.port()}`;
+  const statuses = { first: [], second: [] };
+  const make = (label) => {
+    const transport = createTransport({
+      getHello: () => ({ code: 'TWIN01', key: keyFor('TWIN01'), name: '쌍둥이' }),
+      onMessage: () => {},
+      onStatus: (s) => statuses[label].push(s),
+    });
+    transport.connect(url);
+    return transport;
+  };
+  const until = async (fn) => {
+    for (let i = 0; i < 100 && !fn(); i += 1) await new Promise((r) => setTimeout(r, 20));
+    assert.ok(fn());
+  };
+  const first = make('first');
+  await until(() => statuses.first.some((s) => s.connected));
+  const second = make('second');
+  try {
+    await until(() => statuses.first.some((s) => s.replaced));
+    await new Promise((r) => setTimeout(r, 1500)); // longer than the 1s retry
+    assert.equal(statuses.second.filter((s) => s.connected).length, 1, 'the newer copy stays connected');
+    assert.equal(statuses.first.filter((s) => s.connected).length, 1, 'the replaced copy did not come back');
+  } finally {
+    first.stop();
+    second.stop();
+    await relay.close();
+  }
+});
+
 test('three app transports share a room through the relay', async () => {
   const relay = createRelay({ port: 0 });
   await relay.ready;

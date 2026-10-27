@@ -252,6 +252,32 @@ test('coffee lottery: everyone sees the same pick and spotlight path', () =>
     b.ws.close();
   }, { gameTimings: FAST_GAMES }));
 
+test('two copies with the same code stop kicking each other: after a few swaps the newcomer is held', () =>
+  withRelay(async (port) => {
+    const kicks = [];
+    let current = await hello(port, 'DUPE01', '복제');
+    current.ws.on('close', (code) => kicks.push(code));
+    // The old behaviour: each new copy kicks the last one off.
+    for (let i = 0; i < 3; i += 1) {
+      const next = await hello(port, 'DUPE01', '복제');
+      next.ws.on('close', (code) => kicks.push(code));
+      current = next;
+    }
+    for (let i = 0; i < 50 && kicks.length < 3; i += 1) await new Promise((r) => setTimeout(r, 10));
+    assert.deepEqual(kicks, [4000, 4000, 4000]);
+    // Now the next copy is held silently: no welcome, and the one online stays online.
+    const held = connect(port);
+    await held.opened;
+    held.say({ type: 'hello', code: 'DUPE01', key: keyFor('DUPE01'), name: '복제' });
+    const welcomed = await Promise.race([held.next('welcome').then(() => true), new Promise((r) => setTimeout(() => r(false), 300))]);
+    assert.equal(welcomed, false, 'held, not welcomed');
+    assert.equal(held.ws.readyState, held.ws.OPEN, 'held open, so an old app does not retry');
+    assert.equal(current.ws.readyState, current.ws.OPEN, 'the copy already online is not kicked');
+    assert.deepEqual(kicks, [4000, 4000, 4000]);
+    held.ws.close();
+    current.ws.close();
+  }));
+
 test('race: everyone sees the same split times and finishing order', () =>
   withRelay(async (port) => {
     const [a, b] = await roomOfTwo(port, 'RACE01');

@@ -18,6 +18,12 @@ const MAX_ROOMS = 10_000;
 const MAX_AVATARS = 5_000; // 32KB each at most → ~160MB worst case
 const MIN_AVATAR_INTERVAL_MS = 2_000;
 const MIN_MOVE_INTERVAL_MS = 100;
+// Two running copies of the app share one code and would kick each other off forever.
+// After a few swaps in a short time, a newcomer is held open (no welcome) instead:
+// apps only retry after a close, so a held socket ends the loop even for old versions.
+const SWAP_WINDOW_MS = 30_000;
+const SWAPS_BEFORE_HOLD = 3;
+const HOLD_MS = 5 * 60_000;
 
 /** A name as plain text in a chat message (no bold, links or mentions). */
 const plain = (name) => String(name || '이름 없음').replace(/[`*_~|>@\[\]()#\\]/g, '');
@@ -47,6 +53,7 @@ function createRelay({
   const lastMoveAt = new Map(); // user code -> timestamp
   const pendingMoves = new Map(); // user code -> timer for a held-back move
   const away = new Set(); // user codes whose computer has been idle or locked
+  const swaps = new Map(); // user code -> times a newer copy replaced the online one
 
   const deviceKeys = createDeviceKeys({ file: dataDir && path.join(dataDir, 'device-keys.json'), log });
   const stats = createStats({
@@ -146,9 +153,18 @@ function createRelay({
       stats.record('new_device');
       notify(`🐥 새 사용자가 처음 접속했어요: ${plain(msg.name)}`);
     }
-    stats.record('connect');
     const previous = online.get(msg.code);
-    if (previous && previous !== ws) previous.close(4000, 'replaced');
+    if (previous && previous !== ws) {
+      const recent = (swaps.get(msg.code) || []).filter((at) => now() - at < SWAP_WINDOW_MS);
+      if (recent.length >= SWAPS_BEFORE_HOLD) {
+        swaps.set(msg.code, recent);
+        ws.held = setTimeout(() => ws.close(4002, 'duplicate'), HOLD_MS);
+        return;
+      }
+      swaps.set(msg.code, [...recent, now()]);
+      previous.close(4000, 'replaced');
+    }
+    stats.record('connect');
     ws.user = { code: msg.code, name: msg.name, character: msg.character, x: msg.x };
     away.delete(msg.code); // the app tells us again if it's still idle
     online.set(msg.code, ws);
@@ -251,11 +267,13 @@ function createRelay({
       const parsed = parseClientMessage(String(raw));
       if (!parsed.ok) return send(ws, { type: 'error', reason: parsed.error });
       const msg = parsed.value;
+      if (ws.held) return undefined; // a held duplicate copy: say nothing, so it stays put
       if (msg.type === 'hello') return handleHello(ws, msg);
       if (!ws.user) return send(ws, { type: 'error', reason: 'say-hello-first' });
       return HANDLERS[msg.type](ws, msg);
     });
     ws.on('close', () => {
+      clearTimeout(ws.held);
       if (!ws.user || online.get(ws.user.code) !== ws) return;
       online.delete(ws.user.code);
       away.delete(ws.user.code);

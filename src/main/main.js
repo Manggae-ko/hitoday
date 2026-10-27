@@ -30,6 +30,11 @@ if (profileName && /^[a-z0-9-]{1,16}$/i.test(profileName)) {
   app.setPath('userData', path.join(app.getPath('appData'), `jakdang-${profileName}`));
 }
 
+// One copy per profile. A second launch (double-clicked shortcut, login item plus the
+// installer's own launch on Windows) just opens the settings window of the first.
+const isFirstCopy = app.requestSingleInstanceLock();
+if (!isFirstCopy) app.quit();
+
 const ERROR_TEXT = {
   'too-fast': '조금 천천히 보내 주세요.',
   'no-room': '그런 방이 없어요. 초대 코드를 다시 확인해 주세요.',
@@ -289,7 +294,12 @@ function helloPayload() {
   return { code, key, name, room: room || undefined, character, x };
 }
 
+app.on('second-instance', () => {
+  if (state.profile) openControl();
+});
+
 app.whenReady().then(() => {
+  if (!isFirstCopy) return;
   if (process.platform === 'darwin') app.dock.hide();
   // Installed copies start with the computer, so friends always see you around.
   if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: true });
@@ -325,7 +335,11 @@ app.whenReady().then(() => {
   transport = createTransport({
     getHello: helloPayload,
     onMessage: handleServerMessage,
-    onStatus: ({ connected }) => {
+    onStatus: ({ connected, replaced }) => {
+      if (replaced) {
+        pushState({ connected: false, notice: '다른 곳에서 같은 작당모의가 켜져서 여기는 연결을 멈췄어요. 이 기기에서 쓰려면 앱을 다시 켜 주세요.' });
+        return;
+      }
       pushState({ connected });
       // The server keeps images in memory only, so re-send mine on every (re)connect.
       if (connected && state.ownAvatar) sendOwnAvatar();

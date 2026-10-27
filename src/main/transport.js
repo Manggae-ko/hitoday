@@ -9,6 +9,7 @@ const {
 
 const MIN_RETRY_MS = 1_000;
 const MAX_RETRY_MS = 30_000;
+const REPLACED_CODE = 4000; // the relay closes with this when a newer copy signs in as me
 
 function parseLine(data) {
   const fromName = cleanText(data && data.fromName, MAX_NAME_LENGTH);
@@ -125,17 +126,24 @@ function createTransport({ getHello, onMessage, onStatus }) {
     const socket = new WebSocket(url);
     ws = socket;
     socket.on('open', () => {
-      retryMs = MIN_RETRY_MS;
       socket.send(JSON.stringify({ type: 'hello', ...getHello() }));
     });
     socket.on('message', (raw) => {
       const msg = parseServerMessage(String(raw));
       if (!msg) return;
-      if (msg.type === 'welcome') onStatus({ connected: true });
-      else onMessage(msg);
+      if (msg.type === 'welcome') {
+        retryMs = MIN_RETRY_MS; // only a real sign-in resets the wait, not a bare connect
+        onStatus({ connected: true });
+      } else onMessage(msg);
     });
-    socket.on('close', () => {
+    socket.on('close', (code) => {
       if (ws !== socket) return;
+      if (code === REPLACED_CODE) {
+        // Another copy of this app signed in with the same code: let it have the
+        // connection instead of kicking each other off every second.
+        onStatus({ connected: false, replaced: true });
+        return;
+      }
       onStatus({ connected: false });
       scheduleRetry();
     });

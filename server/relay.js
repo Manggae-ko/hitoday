@@ -11,6 +11,9 @@ const { createGameHost } = require('./game-host');
 const { createDeviceKeys } = require('./device-keys');
 const { createStats } = require('./stats');
 const { createNotifier } = require('./notify');
+const { createRoomAges } = require('./room-ages');
+
+const ROOM_SWEEP_EVERY_MS = 60 * 60 * 1000;
 
 const MIN_SAY_INTERVAL_MS = 800; // fast enough to chat, slow enough to stop spam
 const MAX_PAYLOAD_BYTES = 64 * 1024; // room for one base64 character image
@@ -56,6 +59,7 @@ function createRelay({
   const swaps = new Map(); // user code -> times a newer copy replaced the online one
 
   const deviceKeys = createDeviceKeys({ file: dataDir && path.join(dataDir, 'device-keys.json'), log });
+  const roomAges = createRoomAges({ file: dataDir && path.join(dataDir, 'rooms.json'), now, log });
   const stats = createStats({
     file: dataDir && path.join(dataDir, 'stats.json'),
     now,
@@ -100,8 +104,25 @@ function createRelay({
   function newRoomCode() {
     let code;
     do code = makeCode((n) => crypto.randomInt(n));
-    while (rooms.has(code));
+    while (rooms.has(code) || roomAges.isExpired(code));
     return code;
+  }
+
+  /** Removes rooms nobody has been in for a while (see room-ages.js). */
+  function sweepRooms() {
+    // Rooms in memory that were never recorded (e.g. made before this existed) start counting now.
+    rooms.forEach((_room, code) => roomAges.track(code));
+    const isOccupied = (code) => rooms.has(code) && [...rooms.get(code).members.keys()].some((m) => online.has(m));
+    const gone = roomAges.sweep(isOccupied);
+    gone.forEach((code) => {
+      const room = rooms.get(code);
+      if (!room) return;
+      room.members.forEach((_m, member) => roomOf.delete(member));
+      games.stop(code);
+      rooms.delete(code);
+    });
+    if (gone.length) log(`removed ${gone.length} unused room(s)`);
+    return gone;
   }
 
   function leaveRoom(user) {
@@ -137,6 +158,7 @@ function createRelay({
     while (taken.has(color)) color += 1;
     room.members.set(user, { name, character, x, joinedAt: now(), color });
     roomOf.set(user, roomCode);
+    roomAges.touch(roomCode);
     broadcastState(roomCode);
     return null;
   }
@@ -172,7 +194,9 @@ function createRelay({
     send(ws, { type: 'welcome', code: msg.code });
     // Rejoin (or rebuild after a server restart) the room this app was in.
     const roomCode = roomOf.get(msg.code) || msg.room;
-    if (roomCode && enterRoom(msg.code, ws.user, roomCode, { create: true }) === null) return;
+    // A room removed for being unused stays gone: the app is told to leave it.
+    const rebuildable = roomCode && (rooms.has(roomCode) || !roomAges.isExpired(roomCode));
+    if (rebuildable && enterRoom(msg.code, ws.user, roomCode, { create: true }) === null) return;
     send(ws, { type: 'left-room' });
   }
 
@@ -283,14 +307,20 @@ function createRelay({
     ws.on('error', (err) => log(`socket error: ${err.message}`));
   });
 
+  const roomSweeper = setInterval(sweepRooms, ROOM_SWEEP_EVERY_MS);
+  if (roomSweeper.unref) roomSweeper.unref();
+
   const ready = new Promise((resolve) => httpServer.listen(port, resolve));
 
   return {
     ready,
     port: () => httpServer.address().port,
+    sweepRooms, // runs every hour; exposed for tests
     close: () => new Promise((resolve) => {
       games.stopAll();
       deviceKeys.flush();
+      roomAges.flush();
+      clearInterval(roomSweeper);
       stats.stop();
       pendingMoves.forEach((timer) => clearTimeout(timer));
       wss.clients.forEach((c) => c.terminate());

@@ -278,6 +278,39 @@ test('two copies with the same code stop kicking each other: after a few swaps t
     current.ws.close();
   }));
 
+test('a room nobody has used for 5 days is removed, and a returning app is told it is gone', async () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  let clock = Date.UTC(2026, 9, 1);
+  const relay = createRelay({ port: 0, now: () => clock });
+  await relay.ready;
+  const port = relay.port();
+  try {
+    const a = await hello(port, 'OLDA01', '에이');
+    a.say({ type: 'create-room' });
+    const { room } = await a.next('room');
+    a.ws.close();
+    await new Promise((r) => setTimeout(r, 50));
+
+    clock += 5 * DAY + 1;
+    relay.sweepRooms();
+
+    // The app still remembers the room and asks for it back on its next sign-in.
+    const back = connect(port);
+    await back.opened;
+    back.say({ type: 'hello', code: 'OLDA01', key: keyFor('OLDA01'), name: '에이', room });
+    await back.next('welcome');
+    await back.next('left-room');
+
+    const b = await hello(port, 'OLDB01', '비');
+    b.say({ type: 'join-room', room });
+    assert.equal((await b.next('error')).reason, 'no-room');
+    back.ws.close();
+    b.ws.close();
+  } finally {
+    await relay.close();
+  }
+});
+
 test('race: everyone sees the same split times and finishing order', () =>
   withRelay(async (port) => {
     const [a, b] = await roomOfTwo(port, 'RACE01');

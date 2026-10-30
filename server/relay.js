@@ -5,13 +5,22 @@ const http = require('node:http');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { WebSocketServer } = require('ws');
-const { parseClientMessage, makeCode, MAX_ROOM_MEMBERS, ROOM_HISTORY } = require('../shared/protocol');
+const {
+  parseClientMessage,
+  makeCode,
+  statusAt,
+  kstDate,
+  kstMinutes,
+  MAX_ROOM_MEMBERS,
+  ROOM_HISTORY,
+} = require('../shared/protocol');
 const { createWebHandler } = require('./web');
 const { createGameHost } = require('./game-host');
 const { createDeviceKeys } = require('./device-keys');
 const { createStats } = require('./stats');
 const { createNotifier } = require('./notify');
 const { createRoomAges } = require('./room-ages');
+const { createSchedules } = require('./schedules');
 
 const ROOM_SWEEP_EVERY_MS = 60 * 60 * 1000;
 
@@ -21,6 +30,7 @@ const MAX_ROOMS = 10_000;
 const MAX_AVATARS = 5_000; // 32KB each at most → ~160MB worst case
 const MIN_AVATAR_INTERVAL_MS = 2_000;
 const MIN_MOVE_INTERVAL_MS = 100;
+const MIN_SCHEDULE_INTERVAL_MS = 2_000;
 // Two running copies of the app share one code and would kick each other off forever.
 // After a few swaps in a short time, a newcomer is held open (no welcome) instead:
 // apps only retry after a close, so a held socket ends the loop even for old versions.
@@ -54,12 +64,14 @@ function createRelay({
   const avatars = new Map(); // user code -> { bytes, kind, version } (apps re-send theirs on connect)
   const lastAvatarAt = new Map(); // user code -> timestamp
   const lastMoveAt = new Map(); // user code -> timestamp
+  const lastScheduleAt = new Map(); // user code -> timestamp
   const pendingMoves = new Map(); // user code -> timer for a held-back move
   const away = new Set(); // user codes whose computer has been idle or locked
   const swaps = new Map(); // user code -> times a newer copy replaced the online one
 
   const deviceKeys = createDeviceKeys({ file: dataDir && path.join(dataDir, 'device-keys.json'), log });
   const roomAges = createRoomAges({ file: dataDir && path.join(dataDir, 'rooms.json'), now, log });
+  const schedules = createSchedules({ file: dataDir && path.join(dataDir, 'schedules.json'), now, log });
   const stats = createStats({
     file: dataDir && path.join(dataDir, 'stats.json'),
     now,
@@ -71,6 +83,7 @@ function createRelay({
 
   function roomSnapshot(roomCode) {
     const room = rooms.get(roomCode);
+    const snapshotTime = now();
     const members = [...room.members.entries()]
       .sort((a, b) => a[1].joinedAt - b[1].joinedAt)
       .map(([code, m]) => {
@@ -85,9 +98,11 @@ function createRelay({
           away: online.has(code) && away.has(code),
           avatar: avatar ? avatar.version : null,
           avatarKind: avatar ? avatar.kind : null,
+          status: statusAt(schedules.get(code), snapshotTime),
+          schedule: schedules.visible(code),
         };
       });
-    return { type: 'room', room: roomCode, members, history: room.history };
+    return { type: 'room', room: roomCode, today: kstDate(snapshotTime), members, history: room.history };
   }
 
   function broadcast(roomCode, payload) {
@@ -262,6 +277,18 @@ function createRelay({
       const roomCode = roomOf.get(code);
       if (roomCode) broadcastState(roomCode);
     },
+    'set-schedule': (ws, msg) => {
+      const { code } = ws.user;
+      if (lastScheduleAt.has(code) && now() - lastScheduleAt.get(code) < MIN_SCHEDULE_INTERVAL_MS) {
+        return send(ws, { type: 'error', reason: 'too-fast' });
+      }
+      lastScheduleAt.set(code, now());
+      schedules.set(code, msg.entries);
+      send(ws, { type: 'schedule-saved' });
+      const roomCode = roomOf.get(code);
+      if (roomCode) broadcastState(roomCode);
+      return undefined;
+    },
     'set-avatar': (ws, msg) => {
       const { code } = ws.user;
       if (now() - (lastAvatarAt.get(code) || 0) < MIN_AVATAR_INTERVAL_MS) return send(ws, { type: 'error', reason: 'too-fast' });
@@ -310,17 +337,33 @@ function createRelay({
   const roomSweeper = setInterval(sweepRooms, ROOM_SWEEP_EVERY_MS);
   if (roomSweeper.unref) roomSweeper.unref();
 
+  const segmentKey = (ms) => `${kstDate(ms)}#${[690, 720, 810].filter((minute) => kstMinutes(ms) >= minute).length}`;
+  let lastSegment = segmentKey(now());
+  function tickSchedules() {
+    const nextSegment = segmentKey(now());
+    if (nextSegment === lastSegment) return false;
+    lastSegment = nextSegment;
+    schedules.prune();
+    rooms.forEach((_room, code) => broadcastState(code));
+    return true;
+  }
+  const scheduleTicker = setInterval(tickSchedules, 60_000);
+  if (scheduleTicker.unref) scheduleTicker.unref();
+
   const ready = new Promise((resolve) => httpServer.listen(port, resolve));
 
   return {
     ready,
     port: () => httpServer.address().port,
     sweepRooms, // runs every hour; exposed for tests
+    tickSchedules,
     close: () => new Promise((resolve) => {
       games.stopAll();
       deviceKeys.flush();
       roomAges.flush();
+      schedules.flush();
       clearInterval(roomSweeper);
+      clearInterval(scheduleTicker);
       stats.stop();
       pendingMoves.forEach((timer) => clearTimeout(timer));
       wss.clients.forEach((c) => c.terminate());
@@ -329,7 +372,7 @@ function createRelay({
   };
 }
 
-module.exports = { createRelay, MIN_SAY_INTERVAL_MS };
+module.exports = { createRelay, MIN_SAY_INTERVAL_MS, MIN_SCHEDULE_INTERVAL_MS };
 
 if (require.main === module) {
   const port = Number(process.env.PORT) || 8787;

@@ -1,5 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { keyFor } = require('./helpers');
 const WebSocket = require('ws');
 const { createRelay, MIN_SAY_INTERVAL_MS } = require('../server/relay');
@@ -414,3 +417,135 @@ test('rejects messages before hello and invalid payloads', () =>
     assert.equal((await c.next('error')).reason, 'bad-json');
     c.ws.close();
   }));
+
+const scheduleEntry = (kind, from = '2026-10-30', to = from, note) =>
+  ({ from, to, kind, ...(note ? { note } : {}) });
+
+test("schedule: offline member shows today's leave", async () => {
+  const clock = Date.UTC(2026, 9, 30, 3);
+  const relay = createRelay({ port: 0, now: () => clock });
+  await relay.ready;
+  try {
+    const [a, b] = await roomOfTwo(relay.port(), 'SCH001');
+    b.say({ type: 'set-schedule', entries: [scheduleEntry('leave')] });
+    await b.next('schedule-saved');
+    b.ws.close();
+    const room = await a.next('room', (value) => value.members.some((member) => !member.online));
+    const member = room.members.find((value) => value.code === 'BBBBBB');
+    assert.deepEqual(member.status, { kind: 'leave', label: '연차' });
+    assert.deepEqual(member.schedule, [scheduleEntry('leave')]);
+    a.ws.close();
+  } finally {
+    await relay.close();
+  }
+});
+
+test('schedule: far future entry survives replace', () =>
+  withRelay(async (port) => {
+    const a = await hello(port, 'AAAAAA', '에이', 'SCH002');
+    await a.next('room');
+    const future = scheduleEntry('trip', '2026-12-20');
+    a.say({ type: 'set-schedule', entries: [future] });
+    await a.next('schedule-saved');
+    const room = await a.next('room', (value) => value.members[0].schedule.length === 1);
+    assert.deepEqual(room.members[0].schedule, [future]);
+    a.ws.close();
+  }, { now: () => Date.UTC(2026, 9, 30, 3) }));
+
+test('schedule: restart restores from schedules.json', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hitoday-relay-'));
+  const clock = Date.UTC(2026, 9, 30, 3);
+  const first = createRelay({ port: 0, now: () => clock, dataDir });
+  await first.ready;
+  const a = await hello(first.port(), 'AAAAAA', '에이', 'SCH003');
+  await a.next('room');
+  a.say({ type: 'set-schedule', entries: [scheduleEntry('remote')] });
+  await a.next('schedule-saved');
+  a.ws.close();
+  await first.close();
+
+  const restarted = createRelay({ port: 0, now: () => clock, dataDir });
+  await restarted.ready;
+  try {
+    const back = await hello(restarted.port(), 'AAAAAA', '에이', 'SCH003');
+    const room = await back.next('room');
+    assert.deepEqual(room.members[0].status, { kind: 'remote', label: '재택' });
+    assert.deepEqual(room.members[0].schedule, [scheduleEntry('remote')]);
+    back.ws.close();
+  } finally {
+    await restarted.close();
+  }
+});
+
+test('schedule: schedule list in snapshot', () =>
+  withRelay(async (port) => {
+    const a = await hello(port, 'AAAAAA', '에이', 'SCH004');
+    await a.next('room');
+    const entries = [scheduleEntry('note', '2026-10-30', '2026-10-30', '집중'), scheduleEntry('out', '2026-11-01')];
+    a.say({ type: 'set-schedule', entries });
+    await a.next('schedule-saved');
+    const room = await a.next('room', (value) => value.members[0].schedule.length === 2);
+    assert.equal(room.today, '2026-10-30');
+    assert.deepEqual(room.members[0].schedule, entries);
+    a.ws.close();
+  }, { now: () => Date.UTC(2026, 9, 30, 3) }));
+
+test('schedule: rejects bad entries and too-fast', () => {
+  let clock = Date.UTC(2026, 9, 30, 3);
+  return withRelay(async (port) => {
+    const raw = connect(port);
+    await raw.opened;
+    raw.say({ type: 'set-schedule', entries: [{ from: '2026-02-30', to: '2026-02-30', kind: 'leave' }] });
+    assert.equal((await raw.next('error')).reason, 'bad-schedule');
+    raw.ws.close();
+
+    const a = await hello(port, 'AAAAAA', '에이', 'SCH005');
+    await a.next('room');
+    a.say({ type: 'set-schedule', entries: [scheduleEntry('leave')] });
+    await a.next('schedule-saved');
+    a.say({ type: 'set-schedule', entries: [] });
+    assert.equal((await a.next('error')).reason, 'too-fast');
+    clock += 2_000;
+    a.say({ type: 'set-schedule', entries: [] });
+    await a.next('schedule-saved');
+    a.ws.close();
+  }, { now: () => clock });
+});
+
+test('schedule: only own schedule can be edited', () =>
+  withRelay(async (port) => {
+    const [a, b] = await roomOfTwo(port, 'SCH006');
+    a.say({ type: 'set-schedule', code: 'BBBBBB', entries: [scheduleEntry('leave')] });
+    await a.next('schedule-saved');
+    const room = await b.next('room', (value) => value.members.some((member) => member.schedule.length));
+    assert.deepEqual(room.members.find((member) => member.code === 'AAAAAA').schedule, [scheduleEntry('leave')]);
+    assert.deepEqual(room.members.find((member) => member.code === 'BBBBBB').schedule, []);
+    a.ws.close();
+    b.ws.close();
+  }, { now: () => Date.UTC(2026, 9, 30, 3) }));
+
+test('schedule: boundary rebroadcast', async () => {
+  let clock = Date.UTC(2026, 9, 30, 2, 29);
+  const relay = createRelay({ port: 0, now: () => clock });
+  await relay.ready;
+  try {
+    const a = await hello(relay.port(), 'AAAAAA', '에이', 'SCH007');
+    await a.next('room');
+    a.say({ type: 'set-schedule', entries: [scheduleEntry('lunch')] });
+    await a.next('schedule-saved');
+    await a.next('room');
+    clock = Date.UTC(2026, 9, 30, 2, 31);
+    assert.equal(relay.tickSchedules(), true);
+    const boundary = await a.next('room');
+    assert.deepEqual(boundary.members[0].status, { kind: 'lunch', label: '따점' });
+    assert.equal(relay.tickSchedules(), false);
+    const repeated = await Promise.race([
+      a.next('room').then(() => true),
+      new Promise((resolve) => setTimeout(() => resolve(false), 100)),
+    ]);
+    assert.equal(repeated, false);
+    a.ws.close();
+  } finally {
+    await relay.close();
+  }
+});

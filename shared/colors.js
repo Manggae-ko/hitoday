@@ -1,4 +1,4 @@
-// Built-in character colors: 12 sprite sheets (src/renderer/sprites/mochi-0..11.png).
+// Built-in character colors: 12 sprite sheets per character (src/renderer/sprites/<id>-0..11.png).
 // In a room the server hands out seats; alone, the color comes from the user's code.
 
 const ROOM_COLORS = 12;

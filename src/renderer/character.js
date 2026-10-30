@@ -1,7 +1,7 @@
 // Pixel characters drawn from sprite sheets (see docs/CHARACTER_GUIDE.md).
-// A sheet is 128×128: 4×4 cells of 32×32, shown at 3× (96×96) with crisp pixels.
+// A sheet is 64×64: 4×4 cells of 16×16, shown at 3× (48×48) with crisp pixels.
 //   row 0 idle (2) · row 1 walk (4) · row 2 talk (2) · row 3 sleep (2)
-// A single 32×32 image also works; it just doesn't animate frame-by-frame.
+// A single 16×16 image also works; it just doesn't animate frame-by-frame.
 // Names and messages always go in via textContent.
 
 (() => {
@@ -9,9 +9,9 @@
 const ROOM_COLORS = 12;
 const colorFor = (_code, color) => (Number.isInteger(color) ? Math.abs(color) % ROOM_COLORS : 0);
 
-// Built-in character ids (same list as shared/characters.js); unknown ids fall back to mochi.
-const CHARACTER_IDS = ['mochi', 'cat', 'dog', 'rabbit', 'bear', 'penguin', 'chick', 'frog', 'hamster', 'ghost', 'fox'];
-const defaultSheet = (character, color) => `sprites/${CHARACTER_IDS.includes(character) ? character : 'mochi'}-${color}.png`;
+// Built-in character ids (same list as shared/characters.js); unknown ids fall back to ghost.
+const CHARACTER_IDS = ['ghost', 'rabbit', 'penguin'];
+const defaultSheet = (character, color) => `sprites/${CHARACTER_IDS.includes(character) ? character : 'ghost'}-${color}.png`;
 
 function createCharacter({ name, color, avatar, character }) {
   const root = document.createElement('div');

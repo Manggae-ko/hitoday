@@ -9,7 +9,7 @@ npm run server
 npm start
 ```
 
-두 앱을 나란히 확인하려면 서버를 켠 뒤 `npm run demo:a`와 `npm run demo:b`를 각각 실행합니다. 설치 파일은 `npm run dist:win`으로 만듭니다.
+두 앱을 나란히 확인하려면 서버를 켠 뒤 `npm run demo:a`와 `npm run demo:b`를 각각 실행합니다. x64 Windows 설치 파일은 `npm run dist:win`으로 만듭니다.
 
 ## 구조
 
@@ -17,10 +17,10 @@ npm start
 | --- | --- |
 | `shared/` | 앱과 서버가 공유하는 프로토콜·검증 규칙 |
 | `server/relay.js` | 방, 대화, 접속 상태와 게임을 중계하는 서버 |
-| `server/schedules.js` | 일정 저장과 상태 계산(예정) |
+| `server/schedules.js` | 일정 저장·지난 일정 정리 |
 | `server/web.js`, `web/` | 다운로드·개인정보·통계 웹 페이지 |
 | `src/main/` | Electron 메인 프로세스와 서버 연결 |
-| `src/main/schedule-view.js` | 일정 표 표시 모델 생성(예정) |
+| `src/main/schedule-view.js` | 일정 표 계산·편집 가능 판정 |
 | `src/renderer/` | 설정 창과 바탕화면 오버레이 |
 | `deploy/` | Docker Compose, Caddy, 서버 준비와 자동 업데이트 |
 

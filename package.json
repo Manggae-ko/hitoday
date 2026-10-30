@@ -12,7 +12,7 @@
     "demo:b": "HITODAY_PROFILE=b HITODAY_REGION=right electron .",
     "icons": "node scripts/make-icons.js",
     "snapshot": "electron scripts/snapshot.js",
-    "dist:win": "electron-builder --win",
+    "dist:win": "electron-builder --win --x64",
     "load-test": "node scripts/load-test.js",
     "check:picker": "node scripts/check-picker.js"
   },

@@ -52,7 +52,11 @@ const members = [
     schedule: [{ from: TODAY, to: TODAY, kind: 'leave' }, { from: '2026-11-09', to: '2026-11-10', kind: 'leave' }],
   },
   { code: 'PG0001', name: '수아', character: 'penguin', color: 5, online: true },
-  { code: 'FX0001', name: '태오', character: 'ghost', color: 6, online: true, status: { kind: 'remote', label: '재택' } },
+  {
+    code: 'FX0001', name: '태오', character: 'ghost', color: 6, online: true,
+    status: { kind: 'remote', label: '재택' },
+    schedule: [{ from: TODAY, to: TODAY, kind: 'remote' }],
+  },
   { code: 'FR0001', name: '지민', character: 'rabbit', color: 7, online: true },
   {
     code: ME, name: ME_NAME, character: 'ghost', color: 2, online: true,

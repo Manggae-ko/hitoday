@@ -1,10 +1,5 @@
-# Push a tag like v0.1.2 (matching "version" in package.json):
-#   1. tests → 2. a DRAFT release → 3. Mac + Windows installers uploaded to it →
-#   4. the release is published only when every build succeeded.
-# So the download page's releases/latest never points at a half-finished release.
-#
-# Mac builds are signed and notarized when the signing secrets exist (docs/MAC_SIGNING.md).
-# The relay address comes from the repo variable JAKDANG_SERVER.
+# Push a tag like v0.1.2: test, create a draft release, build the Windows x64
+# installer, then publish only after the build succeeds.
 name: release
 
 on:
@@ -40,21 +35,13 @@ jobs:
             echo "tag $GITHUB_REF_NAME does not match package.json version $version" && exit 1
           fi
       - name: Create a draft release
-        run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --draft --title "작당모의 $GITHUB_REF_NAME" --generate-notes
+        run: gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --draft --title "오늘뭐해? $GITHUB_REF_NAME" --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build:
     needs: create-release
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-latest
-            target: --mac
-          - os: windows-latest
-            target: --win
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -63,96 +50,20 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Bake the relay address into the app
-        if: ${{ vars.JAKDANG_SERVER != '' }}
+        if: ${{ vars.HITODAY_SERVER != '' }}
         shell: bash
-        run: npm pkg set "jakdang.server=${{ vars.JAKDANG_SERVER }}"
-
-      # Import the Developer ID certificate into a throwaway keychain ourselves;
-      # electron-builder then finds the identity there and signs with it.
-      - name: Import the Mac signing certificate
-        id: cert
-        if: matrix.os == 'macos-latest'
+        run: npm pkg set "hitoday.server=${{ vars.HITODAY_SERVER }}"
+      - name: Build and upload the installer
         shell: bash
-        env:
-          P12_BASE64: ${{ secrets.MAC_CERT_P12_BASE64 }}
-          P12_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
-        run: |
-          if [ -z "$P12_BASE64" ]; then
-            echo "::warning::No signing secrets: building an unsigned Mac app."
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          keychain="$RUNNER_TEMP/signing.keychain-db"
-          keychain_password="$(openssl rand -hex 24)"
-          echo "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
-          security create-keychain -p "$keychain_password" "$keychain"
-          security set-keychain-settings -lut 21600 "$keychain"
-          security unlock-keychain -p "$keychain_password" "$keychain"
-          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$P12_PASSWORD" -A -t cert -f pkcs12
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
-          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
-          rm -f "$RUNNER_TEMP/cert.p12"
-          echo "Identities found:"
-          security find-identity -v -p codesigning "$keychain"
-          if ! security find-identity -v -p codesigning "$keychain" | grep -q "Developer ID Application"; then
-            echo "::error::The certificate is not a 'Developer ID Application' certificate." && exit 1
-          fi
-          echo "signed=true" >> "$GITHUB_OUTPUT"
-
-      - name: Build installers
-        shell: bash
-        run: npx electron-builder ${{ matrix.target }} --publish never
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ steps.cert.outputs.signed == 'true' && 'true' || 'false' }}
-          APPLE_ID: ${{ steps.cert.outputs.signed == 'true' && secrets.APPLE_ID || '' }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ steps.cert.outputs.signed == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ steps.cert.outputs.signed == 'true' && secrets.APPLE_TEAM_ID || '' }}
-
-      - name: Check the Mac apps are signed and notarized
-        if: steps.cert.outputs.signed == 'true'
-        shell: bash
-        run: |
-          find dist -maxdepth 2 -name 'Jakdang.app' | while read -r app; do
-            echo "== $app"
-            codesign --verify --deep --strict --verbose=2 "$app"
-            spctl --assess --type execute --verbose "$app"
-            xcrun stapler validate "$app"
-          done
-
-      - name: Upload to the draft release
-        shell: bash
-        run: |
-          shopt -s nullglob
-          files=(dist/*.dmg dist/*.zip dist/*.exe dist/*.blockmap dist/latest*.yml)
-          echo "uploading: ${files[*]}"
-          gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+        run: npx electron-builder --win --x64 --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Microsoft Store package: built only once the Store identity is set as repo variables
-      # (Partner Center → Product identity). It is uploaded to Partner Center by hand, so it
-      # goes to the run's artifacts, not to the public release. The Store signs it.
-      - name: Build the Microsoft Store package
-        if: matrix.os == 'windows-latest' && vars.APPX_IDENTITY_NAME != ''
-        shell: bash
-        run: >
-          npx electron-builder --win appx --publish never
-          -c.appx.identityName="${{ vars.APPX_IDENTITY_NAME }}"
-          -c.appx.publisher="${{ vars.APPX_PUBLISHER }}"
-          -c.appx.publisherDisplayName="${{ vars.APPX_PUBLISHER_DISPLAY_NAME }}"
-      - name: Keep the Store package with this run
-        if: matrix.os == 'windows-latest' && vars.APPX_IDENTITY_NAME != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: microsoft-store-package
-          path: dist/*.appx
-          if-no-files-found: error
 
   publish:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Publish the release (all builds succeeded)
+      - name: Publish the release
         run: gh release edit "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --draft=false --latest
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

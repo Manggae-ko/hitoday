@@ -19,7 +19,7 @@ test('serves the download page with security headers', () =>
     assert.equal(res.status, 200);
     assert.match(res.headers.get('content-type'), /text\/html/);
     assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
-    assert.match(await res.text(), /맥 다운로드/);
+    assert.match(await res.text(), /윈도우 다운로드/);
   }));
 
 test('the privacy policy has its own script-free page, linked from the download page', () =>
@@ -31,34 +31,29 @@ test('the privacy policy has its own script-free page, linked from the download 
     assert.ok(!res.headers.get('content-security-policy').includes('script-src'), 'no scripts, even with analytics on');
     const html = await res.text();
     assert.match(html, /개인정보처리방침/);
-    assert.match(html, /contact@naegoworks\.com/);
+    assert.match(html, /github\.com\/Manggae-ko\/hitoday\/issues/);
     assert.ok(!html.includes('googletagmanager'));
     assert.match(await (await fetch(`${base}/`)).text(), /href="\/privacy"/);
   }));
 
 test('download buttons redirect to the latest GitHub release asset', () =>
-  withRelay({ repo: 'dong/jakdang' }, async (base) => {
-    const mac = await fetch(`${base}/download/mac`, { redirect: 'manual' });
-    assert.equal(mac.status, 302);
-    assert.equal(mac.headers.get('location'), 'https://github.com/dong/jakdang/releases/latest/download/Jakdang-mac-arm64.dmg');
-    const intel = await fetch(`${base}/download/mac-intel`, { redirect: 'manual' });
-    assert.equal(intel.headers.get('location'), 'https://github.com/dong/jakdang/releases/latest/download/Jakdang-mac-x64.dmg');
+  withRelay({ repo: 'dong/hitoday' }, async (base) => {
     const win = await fetch(`${base}/download/win`, { redirect: 'manual' });
-    assert.equal(win.headers.get('location'), 'https://github.com/dong/jakdang/releases/latest/download/Jakdang-Setup.exe');
+    assert.equal(win.headers.get('location'), 'https://github.com/dong/hitoday/releases/latest/download/HIToday-Setup.exe');
   }));
 
 test('downloads say "not ready" until a repo is configured', () =>
   withRelay({ repo: '' }, async (base) => {
-    assert.equal((await fetch(`${base}/download/mac`, { redirect: 'manual' })).status, 503);
+    assert.equal((await fetch(`${base}/download/win`, { redirect: 'manual' })).status, 503);
   }));
 
 test('serves the pixel characters used on the download page', () =>
   withRelay({}, async (base) => {
-    const res = await fetch(`${base}/sprites/mochi-2.png`);
+    const res = await fetch(`${base}/sprites/ghost-2.png`);
     assert.equal(res.status, 200);
     assert.equal(res.headers.get('content-type'), 'image/png');
     assert.equal((await fetch(`${base}/sprites/../package.json`)).status, 404);
-    assert.equal((await fetch(`${base}/sprites/mochi-99.png`)).status, 404);
+    assert.equal((await fetch(`${base}/sprites/ghost-99.png`)).status, 404);
   }));
 
 test('unknown paths and methods are rejected', () =>
@@ -68,6 +63,6 @@ test('unknown paths and methods are rejected', () =>
   }));
 
 test('downloadUrl refuses repo names that could break the URL', () => {
-  assert.equal(downloadUrl('evil.com/x?y', 'mac'), null);
-  assert.equal(downloadUrl('a/b/c', 'mac'), null);
+  assert.equal(downloadUrl('evil.com/x?y', 'win'), null);
+  assert.equal(downloadUrl('a/b/c', 'win'), null);
 });

@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('jakdang', {
+contextBridge.exposeInMainWorld('hitoday', {
   getState: () => ipcRenderer.invoke('control:get-state'),
   onState: (callback) => ipcRenderer.on('control:state', (_e, state) => callback(state)),
   createRoom: () => ipcRenderer.invoke('control:create-room'),
@@ -14,4 +14,5 @@ contextBridge.exposeInMainWorld('jakdang', {
   copyRoom: () => ipcRenderer.invoke('control:copy-room'),
   send: (message) => ipcRenderer.invoke('control:send', String(message)),
   save: (changes) => ipcRenderer.invoke('control:save', changes),
+  setSchedule: (entries) => ipcRenderer.invoke('control:set-schedule', entries),
 });

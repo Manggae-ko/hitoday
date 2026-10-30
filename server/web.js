@@ -12,13 +12,8 @@ const REPO_PATTERN = /^[\w.-]+\/[\w.-]+$/;
 const GA_ID_PATTERN = /^G-[A-Z0-9]{4,16}$/;
 const MIN_STATS_TOKEN_LENGTH = 16;
 // Fixed installer names (see "artifactName" in package.json), so "latest" links never change.
-// Macs get a per-chip build (half the size of a universal one): Apple chip by default.
-const ASSETS = {
-  mac: 'Jakdang-mac-arm64.dmg',
-  'mac-intel': 'Jakdang-mac-x64.dmg',
-  win: 'Jakdang-Setup.exe',
-};
-const STAT_FOR = { mac: 'download_mac', 'mac-intel': 'download_mac', win: 'download_win' };
+const ASSETS = { win: 'HIToday-Setup.exe' };
+const STAT_FOR = { win: 'download_win' };
 
 const SECURITY_HEADERS = {
   'x-content-type-options': 'nosniff',
@@ -36,7 +31,7 @@ function loadSprites() {
   const dir = path.join(__dirname, '..', 'web', 'sprites');
   const sprites = new Map();
   try {
-    fs.readdirSync(dir).filter((f) => /^mochi-\d{1,2}\.png$/.test(f))
+    fs.readdirSync(dir).filter((f) => /^ghost-\d{1,2}\.png$/.test(f))
       .forEach((f) => sprites.set(f, fs.readFileSync(path.join(dir, f))));
   } catch (err) {
     process.stderr.write(`download page sprites missing: ${err.message}\n`);
@@ -154,7 +149,7 @@ function createWebHandler({
         'referrer-policy': 'no-referrer', // keep ?token= out of any Referer header
       }, renderStatsPage(report));
     }
-    const spriteMatch = pathname.match(/^\/sprites\/(mochi-\d{1,2}\.png)$/);
+    const spriteMatch = pathname.match(/^\/sprites\/(ghost-\d{1,2}\.png)$/);
     if (spriteMatch && sprites.has(spriteMatch[1])) {
       return reply(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' }, sprites.get(spriteMatch[1]));
     }
@@ -169,7 +164,7 @@ function createWebHandler({
         etag: `"${avatar.version}"`,
       }, avatar.bytes);
     }
-    const match = pathname.match(/^\/download\/(mac|mac-intel|win)$/);
+    const match = pathname.match(/^\/download\/(win)$/);
     if (match) {
       const target = downloadUrl(repo, match[1]);
       if (!target) return reply(503, { 'content-type': 'text/plain; charset=utf-8' }, '아직 다운로드 준비 중이에요.');

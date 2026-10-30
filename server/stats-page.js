@@ -49,7 +49,7 @@ function renderStatsPage(report) {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex" />
-<title>작당모의 통계</title>
+<title>오늘뭐해? 통계</title>
 <style>
   :root { --bg: #eef1ff; --card: #fff; --ink: #1b1f3b; --soft: #545b7c; --line: #1b1f3b; --accent: #ffd23f; --mint: #a8f0dc; }
   @media (prefers-color-scheme: dark) { :root { --bg: #131733; --card: #1d2246; --ink: #eef1ff; --soft: #a9b0d4; --line: #eef1ff; --mint: #2f7f6c; } }
@@ -83,7 +83,7 @@ function renderStatsPage(report) {
 <body>
 <main>
   <header>
-    <h1>작당모의 통계</h1>
+    <h1>오늘뭐해? 통계</h1>
     <span class="live">지금 기준 · 하루는 한국 시간 0시에 바뀌어요</span>
   </header>
 

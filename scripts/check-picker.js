@@ -49,14 +49,14 @@ process.on('exit', () => { if (app) app.kill('SIGKILL'); });
   await relay.ready;
 
   // Test profile already in ROOM, pointed at the local relay.
-  const userData = path.join(os.homedir(), 'Library/Application Support/jakdang-picktest');
+  const userData = path.join(os.homedir(), 'Library/Application Support/hitoday-picktest');
   fs.mkdirSync(userData, { recursive: true });
   fs.writeFileSync(path.join(userData, 'profile.json'), JSON.stringify({
-    code: 'PICK01', name: '내고', room: ROOM, serverUrl: `ws://127.0.0.1:${PORT}`, character: 'chick',
+    code: 'PICK01', name: '내고', room: ROOM, serverUrl: `ws://127.0.0.1:${PORT}`, character: 'penguin',
   }));
 
   app = spawn(ELECTRON, [REPO, `--remote-debugging-port=${DEBUG_PORT}`], {
-    env: { ...process.env, JAKDANG_PROFILE: 'picktest' },
+    env: { ...process.env, HITODAY_PROFILE: 'picktest' },
     stdio: 'ignore',
   });
 
@@ -72,7 +72,7 @@ process.on('exit', () => { if (app) app.kill('SIGKILL'); });
 
   const targets = await cdpTargets();
   await wait(3000); // app connects and joins
-  bot.send(JSON.stringify({ type: 'hello', code: 'BOT001', key: `BOT001${'k'.repeat(37)}`, name: '준호', character: 'bear', room: ROOM }));
+  bot.send(JSON.stringify({ type: 'hello', code: 'BOT001', key: `BOT001${'k'.repeat(37)}`, name: '준호', character: 'rabbit', room: ROOM }));
   await wait(2500);
 
   const overlay = (await cdpTargets()).find((t) => t.type === 'page' && t.url.includes('overlay.html'));

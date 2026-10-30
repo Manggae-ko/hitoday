@@ -1,30 +1,55 @@
-// Small pixel-art toolkit: colors and shape tests on a 32×32 grid.
+'use strict';
 
-function hsl(h, s, l) {
-  const sat = s / 100;
-  const light = l / 100;
-  const k = (n) => (n + h / 30) % 12;
-  const a = sat * Math.min(light, 1 - light);
-  const f = (n) => light - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
-  return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255), 255];
+const ROOM_PALETTE = [
+  '#e84a5f', '#2878d0', '#26965c', '#d39b20', '#8056b3', '#168d8d',
+  '#e16d2f', '#536b36', '#c04b91', '#527aa3', '#a36b45', '#707070',
+];
+
+const createCanvas = (width, height) => ({ width, height, data: new Uint8Array(width * height * 4) });
+
+function hexToRgb(hex) {
+  return [1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16));
 }
 
-const hex = (value) => {
-  const n = parseInt(value.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255];
-};
+const toHex = (rgb) => `#${rgb.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
 
-/** Shape tests take a pixel (x, y) and say whether its center is inside. */
-const ellipse = (cx, cy, rx, ry) => (x, y) => ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2 <= 1;
+function setPx(canvas, x, y, color) {
+  if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return;
+  const rgba = Array.isArray(color) ? color : [...hexToRgb(color), 255];
+  canvas.data.set(rgba, (y * canvas.width + x) * 4);
+}
 
-/** Upward-pointing triangle: apex at (ax, ay), base at baseY with the given half width. */
-const triangle = (ax, ay, baseY, halfWidth) => (x, y) => {
-  const py = y + 0.5;
-  if (py < ay || py > baseY) return false;
-  return Math.abs(x + 0.5 - ax) <= ((py - ay) / (baseY - ay)) * halfWidth;
-};
+function rect(canvas, x, y, width, height, color) {
+  for (let yy = y; yy < y + height; yy += 1) for (let xx = x; xx < x + width; xx += 1) setPx(canvas, xx, yy, color);
+}
 
-const any = (...tests) => (x, y) => tests.some((t) => t(x, y));
-const pixelsAt = (points) => (x, y) => points.some(([px, py]) => px === x && py === y);
+function furTint(_baseHex, roomIndex) {
+  const [r, g, b] = hexToRgb(ROOM_PALETTE[roomIndex]).map((v) => v / 255);
+  const max = Math.max(r, g, b); const min = Math.min(r, g, b); const range = max - min;
+  let hue = 0;
+  if (range && max === r) hue = ((g - b) / range + (g < b ? 6 : 0)) / 6;
+  else if (range && max === g) hue = ((b - r) / range + 2) / 6;
+  else if (range) hue = ((r - g) / range + 4) / 6;
+  const saturation = range ? [0.25, 0.30, 0.35][roomIndex % 3] : 0;
+  const lightness = [0.78, 0.82, 0.85, 0.80][Math.floor(roomIndex / 3)];
+  const q = lightness < 0.5 ? lightness * (1 + saturation) : lightness + saturation - lightness * saturation;
+  const p = 2 * lightness - q;
+  const channel = (t) => { const value = (t + 1) % 1; if (value < 1 / 6) return p + (q - p) * 6 * value; if (value < 1 / 2) return q; if (value < 2 / 3) return p + (q - p) * (2 / 3 - value) * 6; return p; };
+  return toHex([channel(hue + 1 / 3), channel(hue), channel(hue - 1 / 3)].map((v) => v * 255));
+}
 
-module.exports = { hsl, hex, ellipse, triangle, any, pixelsAt };
+function roomTone(roomIndex, saturation, lightness) {
+  const [r, g, b] = hexToRgb(ROOM_PALETTE[roomIndex]).map((v) => v / 255);
+  const max = Math.max(r, g, b); const min = Math.min(r, g, b); const range = max - min;
+  let hue = 0;
+  if (range && max === r) hue = ((g - b) / range + (g < b ? 6 : 0)) / 6;
+  else if (range && max === g) hue = ((b - r) / range + 2) / 6;
+  else if (range) hue = ((r - g) / range + 4) / 6;
+  const sat = range ? saturation : 0;
+  const q = lightness < 0.5 ? lightness * (1 + sat) : lightness + sat - lightness * sat;
+  const p = 2 * lightness - q;
+  const channel = (t) => { const value = (t + 1) % 1; if (value < 1 / 6) return p + (q - p) * 6 * value; if (value < 1 / 2) return q; if (value < 2 / 3) return p + (q - p) * (2 / 3 - value) * 6; return p; };
+  return toHex([channel(hue + 1 / 3), channel(hue), channel(hue - 1 / 3)].map((v) => v * 255));
+}
+
+module.exports = { ROOM_PALETTE, createCanvas, setPx, rect, hexToRgb, furTint, roomTone };

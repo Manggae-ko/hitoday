@@ -19,20 +19,20 @@ body {
   position: absolute;
   left: 0;
   bottom: 6px;
-  width: 96px;
+  width: 48px;
   cursor: pointer;
   will-change: transform;
 }
 
-/* Pixel sprite: a 96×96 window onto a 384×384 sheet (4×4 cells at 3×).
+/* Pixel sprite: a 48×48 window onto a 192×192 sheet (4×4 cells at 3×).
    --row picks the animation row; the sheet slides by whole cells with steps(). */
 .figure {
   --row: 0;
   --frames: 2;
   --speed: 1.1s;
   position: relative;
-  width: 96px;
-  height: 96px;
+  width: 48px;
+  height: 48px;
   overflow: hidden;
 }
 .facing-left .figure { transform: scaleX(-1); }
@@ -40,31 +40,35 @@ body {
   position: absolute;
   left: 0;
   top: 0;
-  width: 384px;
-  height: 384px;
+  width: 192px;
+  height: 192px;
   image-rendering: pixelated;
-  translate: 0 calc(var(--row) * -96px);
+  translate: 0 calc(var(--row) * -48px);
   animation: frames var(--speed) steps(var(--frames)) infinite;
 }
 .is-walking .figure { --row: 1; --frames: 4; --speed: 0.5s; }
 .is-waving .figure { --row: 2; --frames: 2; --speed: 0.5s; }
 .is-asleep .figure { --row: 3; --frames: 2; --speed: 1.8s; }
 
-/* A single 32×32 image: scale it up and give it a little bounce instead of frames. */
-.figure.is-single .sheet { width: 96px; height: 96px; translate: none; animation: none; }
+/* A single 16×16 image: scale it up and give it a little bounce instead of frames. */
+.figure.is-single .sheet { width: 48px; height: 48px; translate: none; animation: none; }
 .is-walking .figure.is-single .sheet { animation: bob 0.42s ease-in-out infinite; }
 .is-waving .figure.is-single .sheet { animation: bob 0.6s ease-in-out infinite; }
 
-@keyframes frames { to { transform: translateX(calc(var(--frames) * -96px)); } }
-@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@keyframes frames { to { transform: translateX(calc(var(--frames) * -48px)); } }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 
 .tag {
+  box-sizing: border-box;
   position: absolute;
   bottom: 100%;
   left: 50%;
   translate: -50% 0;
   margin-bottom: 2px;
   padding: 2px 8px;
+  max-width: 112px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--font-pixel);
   font-size: 11px;
@@ -141,6 +145,24 @@ body {
 .is-away .zzz { opacity: 0.8; animation: drift 2.4s ease-in-out infinite; }
 .is-away .tag::after { content: " · 자리비움"; font-weight: 400; }
 
+/* 일정 상태(연차·외근…): 이름표 둘째 줄, 넘치면 말줄임. .is-away 규칙 뒤에 둬야 덮어씀 */
+.has-status .tag::after {
+  content: attr(data-status);
+  display: block;
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.has-status .tag { opacity: 1; border-radius: 10px; }
+.has-status .bubble { bottom: calc(100% + 44px); }
+.has-status .hand-picker { bottom: calc(100% + 48px); }
+/* 연차·출장·반차: 쉬는 포즈(흐림·zzz 없음). 걷기·손 흔들기 중엔 덮지 않음 */
+.is-resting:not(.is-walking):not(.is-waving) .figure { --row: 3; --frames: 2; --speed: 1.8s; }
+.is-resting .zzz { opacity: 0; animation: none; }
+/* 앱이 꺼진(.is-asleep) 연차·출장도 흐리지 않음: .is-asleep .figure 규칙보다 뒤에 둬야 덮어씀 */
+.is-resting .figure { opacity: 1; filter: none; }
+
 /* --- mini-games ---------------------------------------------------------- */
 
 /* Big sticker sign floating above the strip, right-aligned over my corner. */
@@ -177,8 +199,8 @@ body {
   position: absolute;
   left: 50%;
   bottom: -4px;
-  width: 120px;
-  height: 140px;
+  width: 64px;
+  height: 72px;
   translate: -50% 0;
   background: radial-gradient(ellipse at 50% 100%, rgb(255 236 150 / 0.75), transparent 70%);
   pointer-events: none;
@@ -193,8 +215,8 @@ body {
   position: absolute;
   left: 50%;
   bottom: 0;
-  width: 104px;
-  height: 104px;
+  width: 56px;
+  height: 56px;
   translate: -50% 0;
   border: 4px dashed #ff5b3a;
   border-radius: 50%;
@@ -233,7 +255,7 @@ body {
 @keyframes pop-in { from { opacity: 0; transform: translateY(8px) scale(0.92); } }
 @keyframes shake { 25% { translate: -4px 0; } 75% { translate: 4px 0; } }
 /* Uses `translate` (not transform) so it doesn't undo the left/right facing flip. */
-@keyframes hop { 0%, 100% { translate: 0 0; } 40% { translate: 0 -14px; } }
+@keyframes hop { 0%, 100% { translate: 0 0; } 40% { translate: 0 -7px; } }
 @keyframes pulse { 0%, 100% { transform: scale(0.92); opacity: 0.6; } 50% { transform: scale(1.04); opacity: 1; } }
 
 @keyframes drift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }

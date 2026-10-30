@@ -3,14 +3,16 @@
 // Whoever talks gets a bubble; people whose app is off doze (dimmed, zzz).
 
 const { createCharacter, colorFor } = window.Character;
-const api = window.jakdang;
+const api = window.hitoday;
 
-const CHAR_WIDTH = 96;
+const CHAR_WIDTH = 48;
 const WALK_SPEED_PX_PER_S = 170;
 const EDGE_INSET = 40;
 const MAX_GAP = 120;
 const MIN_GAP = 64;
 const BUBBLE_MS = 9_000;
+// 이 상태들은 걷기·손 흔들기가 아닐 때 쉬는 포즈(row 3)로 서 있음
+const RESTING_KINDS = ['leave', 'trip', 'half-am', 'half-pm'];
 
 const stage = document.getElementById('stage');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -174,9 +176,17 @@ function updateLineup({ me, members }) {
     // While I'm dragging, my own spot is whatever is under my mouse.
     if (!(drag && drag.actor === actor)) actor.spot = member.x ?? null;
     actor.character.setLabel(member.name);
+    actor.character.root.querySelector('.tag').title = member.name;
     actor.character.setLook(colorFor(member.code, member.color), member.avatar, member.character);
-    actor.character.root.classList.toggle('is-asleep', !member.online);
-    actor.character.root.classList.toggle('is-away', member.online && member.away === true);
+    // 일정 상태(연차 등)는 이름표 둘째 줄로; 상태가 있으면 자리비움 표시는 숨김
+    const status = member.status || null;
+    const { root } = actor.character;
+    root.querySelector('.tag').dataset.status = status ? status.label : '';
+    root.dataset.kind = status ? status.kind : '';
+    root.classList.toggle('has-status', Boolean(status));
+    root.classList.toggle('is-asleep', !member.online);
+    root.classList.toggle('is-away', !status && member.online && member.away === true);
+    root.classList.toggle('is-resting', RESTING_KINDS.includes(status && status.kind));
     if (drag && drag.actor === actor) return;
     const target = targetX(actor, count);
     if (isNew) {
@@ -219,7 +229,7 @@ function memberSays({ from, message }) {
 // Runners line up on the left, one lane each, and run right on the server's split times
 // (so every screen shows the same race). Afterwards everyone walks back to their spot.
 
-const LANE_PX = 26;
+const LANE_PX = 22;
 const BANNER_CLEAR_PX = 320; // room on the right for the result sign
 const PODIUM_GAP_PX = 104; // finishers stand side by side, first place nearest the line
 const PODIUM_STEP_MS = 450;

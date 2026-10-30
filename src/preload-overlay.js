@@ -4,7 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 const COMMANDS = ['room:members', 'member:says', 'member:moved', 'game'];
 const MOVES = ['rock', 'paper', 'scissors', 'tap'];
 
-contextBridge.exposeInMainWorld('jakdang', {
+contextBridge.exposeInMainWorld('hitoday', {
   ready: () => ipcRenderer.invoke('overlay:ready'),
   onCommand: (callback) => {
     COMMANDS.forEach((channel) => ipcRenderer.on(channel, (_e, payload) => callback(channel, payload || {})));

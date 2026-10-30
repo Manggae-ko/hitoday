@@ -11,12 +11,12 @@ const ICON = process.platform === 'darwin' ? 'trayTemplate.png' : 'tray.png';
 function createTray({ onOpen, onQuit, onToggleHidden, hideShortcutLabel }) {
   const icon = nativeImage.createFromPath(path.join(__dirname, '..', '..', 'assets', ICON));
   const tray = new Tray(icon);
-  tray.setToolTip('작당모의');
+  tray.setToolTip('오늘뭐해?');
   let state = { hidden: false, onInstall: null };
 
   const render = () => tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: '작당모의 열기', click: onOpen },
+      { label: '오늘뭐해? 열기', click: onOpen },
       {
         label: state.hidden ? '캐릭터 다시 보이기' : '캐릭터 잠깐 숨기기',
         accelerator: hideShortcutLabel || undefined,

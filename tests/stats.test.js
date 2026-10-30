@@ -40,7 +40,7 @@ test('counts events per day, keeps the peak, ignores unknown events', () => {
 });
 
 test('daily counts survive a restart', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jakdang-stats-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hitoday-stats-'));
   const file = path.join(dir, 'stats.json');
   const now = () => Date.UTC(2026, 9, 17, 3, 0);
   const first = createStats({ file, now });
@@ -73,14 +73,14 @@ test('the stats page needs the token, and does not exist without one', async () 
     assert.equal((await fetch(`${base}/stats?token=wrong-token-wrong-token`)).status, 401);
     const page = await fetch(`${base}/stats?token=${TOKEN}`);
     assert.equal(page.status, 200);
-    assert.match(await page.text(), /작당모의 통계/);
+    assert.match(await page.text(), /오늘뭐해\? 통계/);
     const json = await fetch(`${base}/stats.json`, { headers: { authorization: `Bearer ${TOKEN}` } });
     assert.equal(json.status, 200);
   });
 });
 
 test('visits, downloads, sign-ins and messages show up in the numbers', () =>
-  withRelay({ statsToken: TOKEN, repo: 'naego/jakdang' }, async (base, port) => {
+  withRelay({ statsToken: TOKEN, repo: 'naego/hitoday' }, async (base, port) => {
     await fetch(`${base}/`);
     await fetch(`${base}/download/win`, { redirect: 'manual' });
 

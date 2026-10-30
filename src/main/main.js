@@ -15,7 +15,11 @@ const { createPresence } = require('./presence');
 const HIDE_SHORTCUT = 'CommandOrControl+Shift+.';
 const {
   cleanText, normalizeCode, isCode, spotOrNull, MAX_MESSAGE_LENGTH, ROOM_HISTORY, GAMES, RPS_HANDS,
+  STATUS_KINDS, STATUS_LABELS, SCHEDULE_WINDOW_DAYS, kstDate, parseScheduleEntries,
 } = require('../../shared/protocol');
+const {
+  buildScheduleView, dateAfter, nextScheduleKnown, scheduleRefusal,
+} = require('./schedule-view');
 const { describeGame } = require('./game-text');
 const { checkAvatar } = require('../../shared/avatar');
 const { colorFor } = require('../../shared/colors');
@@ -24,10 +28,10 @@ const {
   loadOwnAvatar, saveOwnAvatar, clearOwnAvatar, createAvatarCache, toLook,
 } = require('./avatars');
 
-// JAKDANG_PROFILE=b lets two copies run side by side on one machine (handy for filming).
-const profileName = process.env.JAKDANG_PROFILE;
+// HITODAY_PROFILE=b lets two copies run side by side on one machine (handy for filming).
+const profileName = process.env.HITODAY_PROFILE;
 if (profileName && /^[a-z0-9-]{1,16}$/i.test(profileName)) {
-  app.setPath('userData', path.join(app.getPath('appData'), `jakdang-${profileName}`));
+  app.setPath('userData', path.join(app.getPath('appData'), `hitoday-${profileName}`));
 }
 
 // One copy per profile. A second launch (double-clicked shortcut, login item plus the
@@ -45,9 +49,14 @@ const ERROR_TEXT = {
   'game-running': '이미 게임 중이에요. 끝나고 다시 해요.',
   'need-two': '게임은 접속한 사람이 2명 이상일 때 할 수 있어요.',
   'not-png': 'PNG 파일만 올릴 수 있어요.',
-  'bad-size': '32×32 한 장이나 128×128 시트만 올릴 수 있어요.',
+  'bad-size': '16×16 한 장이나 64×64 시트만 올릴 수 있어요.',
   'too-big': '32KB 이하 이미지로 올려 주세요.',
 };
+// 일정 저장 결과 문구: 일정 탭의 #schedule-msg 에만 표시(#notice 미사용)
+const SCHEDULE_SAVED = '저장했어요';
+const SCHEDULE_FAILED = '일정을 저장하지 못했어요';
+const SCHEDULE_TOO_FAST = '잠시 후 다시 저장해 주세요';
+const STATUS_KIND_LIST = STATUS_KINDS.map((kind) => ({ kind, label: STATUS_LABELS[kind] }));
 // Late or duplicate moves are harmless; don't bother the user about them.
 const QUIET_ERRORS = new Set(['no-game', 'not-player', 'bad-move']);
 // The lottery result arrives instantly; the chat waits until the spotlight has landed.
@@ -55,7 +64,21 @@ const LOTTERY_REVEAL_MS = 4_500;
 // The race result too: after the countdown (same as src/renderer/games.js) and the slowest runner.
 const RACE_COUNTDOWN_MS = 2_000;
 
-const state = { profile: null, connected: false, notice: '', room: null, chat: [], game: null, ownAvatar: null };
+const state = {
+  profile: null,
+  connected: false,
+  notice: '',
+  room: null,
+  chat: [],
+  game: null,
+  ownAvatar: null,
+  mySchedule: [],
+  scheduleKnown: false, // room snapshot 으로 서버의 내 일정을 받았는지
+  schedulePending: false,
+  scheduleMessage: null,
+};
+// 저장 요청 직전의 내 일정: 서버가 거절하면 이걸로 되돌림
+let scheduleBefore = [];
 let overlay = null;
 let control = null;
 let transport = null;
@@ -79,13 +102,16 @@ function myColor() {
   return colorFor(state.profile.code, me ? me.color : null);
 }
 
-/** How a member looks: their uploaded image (mine straight from disk), else the built-in mochi. */
+/** How a member looks: their uploaded image (mine straight from disk), else the built-in ghost. */
 function lookOf(member) {
   if (member.code === state.profile.code) {
     return state.ownAvatar ? toLook(state.ownAvatar.bytes, state.ownAvatar.kind) : null;
   }
   return avatarCache.lookFor(member.code, member.avatar);
 }
+
+// 방 안이면 서버가 준 오늘(KST), 없거나 방 밖이면 이 기기 시각의 KST 날짜
+const todayKst = () => (state.room && state.room.today) || kstDate(Date.now());
 
 function publicState() {
   const { profile, connected, notice, room, chat, game } = state;
@@ -106,6 +132,14 @@ function publicState() {
     characters: CHARACTERS,
     hasSpot: profile.x !== null,
     canEditServer: !app.isPackaged,
+    today: todayKst(),
+    scheduleLastDay: dateAfter(todayKst(), SCHEDULE_WINDOW_DAYS - 1), // 입력 상한 today+59
+    statusKinds: STATUS_KIND_LIST,
+    schedule: state.mySchedule,
+    scheduleKnown: state.scheduleKnown,
+    scheduleView: room ? buildScheduleView(room.members, todayKst()) : null,
+    schedulePending: state.schedulePending,
+    scheduleMessage: state.scheduleMessage,
   };
 }
 
@@ -132,7 +166,9 @@ const toChatLine = (line) => ({
 function showMembers() {
   const { code, name, character, x } = state.profile;
   const members = state.room ? state.room.members : [{ code, name, character, x, online: true }];
-  const dressed = members.map((m) => ({ ...m, color: colorFor(m.code, m.color), avatar: lookOf(m) }));
+  const dressed = members.map((m) => ({
+    ...m, color: colorFor(m.code, m.color), avatar: lookOf(m), status: m.status || null,
+  }));
   toOverlay('room:members', { me: code, members: dressed });
 }
 
@@ -144,14 +180,24 @@ function sendOwnAvatar() {
 function handleServerMessage(msg) {
   if (msg.type === 'room') {
     rememberRoom(msg.room);
-    pushState({ room: { code: msg.room, members: msg.members }, chat: msg.history.map(toChatLine) });
+    // 저장 대기 중이 아니면 서버에 있는 내 일정이 기준
+    const me = msg.members.find((m) => m.code === state.profile.code);
+    const mySchedule = me && !state.schedulePending ? me.schedule : state.mySchedule;
+    pushState({
+      room: { code: msg.room, members: msg.members, today: msg.today },
+      chat: msg.history.map(toChatLine),
+      mySchedule,
+      scheduleKnown: nextScheduleKnown(state.scheduleKnown, msg, state.profile.code),
+    });
     showMembers();
+  } else if (msg.type === 'schedule-saved') {
+    pushState({ schedulePending: false, scheduleMessage: SCHEDULE_SAVED });
   } else if (msg.type === 'said') {
     toOverlay('member:says', { from: msg.from, message: msg.message });
     pushState({ chat: [...state.chat, toChatLine(msg)].slice(-ROOM_HISTORY), notice: '' });
   } else if (msg.type === 'left-room') {
     rememberRoom('');
-    pushState({ room: null, chat: [] });
+    pushState({ room: null, chat: [], scheduleKnown: nextScheduleKnown(state.scheduleKnown, msg, state.profile.code) });
     showMembers();
   } else if (msg.type === 'moved') {
     if (!state.room) return;
@@ -165,11 +211,24 @@ function handleServerMessage(msg) {
     // Someone else's device already owns this code (e.g. a copied profile): start fresh.
     state.profile = withNewIdentity(state.profile);
     saveProfile(app.getPath('userData'), state.profile);
+    if (state.schedulePending) failSchedule(msg.reason);
+    state.scheduleKnown = nextScheduleKnown(state.scheduleKnown, { type: 'new-identity' }, state.profile.code);
     pushState({ room: null, chat: [], notice: '다른 기기에서 쓰던 코드라 새 코드를 만들었어요. 방에 다시 들어가 주세요.' });
     transport.connect(state.profile.serverUrl);
+  } else if (msg.type === 'error' && state.schedulePending) {
+    // 저장 대기 중 오류는 reason 과 무관하게 일정 저장 실패로 보고 대기를 풂
+    failSchedule(msg.reason);
   } else if (msg.type === 'error' && !QUIET_ERRORS.has(msg.reason)) {
     pushState({ notice: ERROR_TEXT[msg.reason] || `문제가 생겼어요 (${msg.reason})` });
   }
+}
+
+function failSchedule(reason) {
+  pushState({
+    mySchedule: scheduleBefore,
+    schedulePending: false,
+    scheduleMessage: reason === 'too-fast' ? SCHEDULE_TOO_FAST : SCHEDULE_FAILED,
+  });
 }
 
 function nameOf(code) {
@@ -275,6 +334,18 @@ function registerIpc() {
     if (!message) return { ok: false, error: ERROR_TEXT['empty-message'] };
     return sendOrFail({ type: 'say', message });
   });
+  // 일정 전량 교체: renderer 입력을 여기서 다시 검증(서버도 한 번 더 검증)
+  ipcMain.handle('control:set-schedule', (_e, entries) => {
+    // 대기 중·welcome 전(held 소켓 포함)·내 서버 일정 미확인이면 보내지 않음
+    const refusal = scheduleRefusal(state);
+    if (refusal) return { ok: false, reason: refusal };
+    const parsed = parseScheduleEntries(entries);
+    if (!parsed.ok) return { ok: false, reason: 'bad-schedule' };
+    if (!transport.send({ type: 'set-schedule', entries: parsed.value })) return { ok: false, reason: 'offline' };
+    scheduleBefore = state.mySchedule;
+    pushState({ mySchedule: parsed.value, schedulePending: true, scheduleMessage: null });
+    return { ok: true };
+  });
   ipcMain.handle('control:save', (_e, changes) => {
     // Packaged builds always use the built-in server.
     const next = { ...(changes || {}), serverUrl: app.isPackaged ? state.profile.serverUrl : (changes || {}).serverUrl };
@@ -337,10 +408,18 @@ app.whenReady().then(() => {
     onMessage: handleServerMessage,
     onStatus: ({ connected, replaced }) => {
       if (replaced) {
-        pushState({ connected: false, notice: '다른 곳에서 같은 작당모의가 켜져서 여기는 연결을 멈췄어요. 이 기기에서 쓰려면 앱을 다시 켜 주세요.' });
+        if (state.schedulePending) failSchedule('offline');
+        pushState({
+          connected: false,
+          scheduleKnown: nextScheduleKnown(state.scheduleKnown, { type: 'status' }, state.profile.code),
+          notice: '다른 곳에서 같은 오늘뭐해?가 켜져서 여기는 연결을 멈췄어요. 이 기기에서 쓰려면 앱을 다시 켜 주세요.',
+        });
         return;
       }
-      pushState({ connected });
+      // 접속·끊김 모두 다음 room snapshot 전까지 내 일정 미확인
+      pushState({ connected, scheduleKnown: nextScheduleKnown(state.scheduleKnown, { type: 'status' }, state.profile.code) });
+      // 연결이 끊기면 저장 응답이 올 수 없으니 대기를 풂
+      if (!connected && state.schedulePending) failSchedule('offline');
       // The server keeps images in memory only, so re-send mine on every (re)connect.
       if (connected && state.ownAvatar) sendOwnAvatar();
       // It forgets "away" on reconnect too.

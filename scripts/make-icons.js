@@ -1,84 +1,50 @@
-// App icon and tray icon, drawn from the same pixel mochi as the default character.
-// Usage: node scripts/make-icons.js
-//
-// build/icon.png    1024×1024 app icon (electron-builder turns it into .icns / .ico)
-// assets/tray*.png  menu-bar / tray icons
+'use strict';
 
 const fs = require('node:fs');
 const path = require('node:path');
 const { encodePng } = require('./png');
-const { FRAMES, ROOM_HUES, drawCharacter } = require('./sprites/draw');
-const { SPECIES } = require('./sprites/species');
+const { drawFrame } = require('./sprites/draw');
+const { ROOM_PALETTE, createCanvas, setPx } = require('./sprites/pixel');
 
-const drawMochi = (spec) => drawCharacter(SPECIES.mochi, spec, ROOM_HUES[0]);
+const root = path.join(__dirname, '..');
+const bytes = (canvas) => encodePng(canvas.width, canvas.height, (x, y) => Array.from(canvas.data.slice((y * canvas.width + x) * 4, (y * canvas.width + x) * 4 + 4)));
 
-const GRID = 64; // the app icon is designed on a 64×64 pixel grid, then scaled ×16
-const APP_ICON_SIZE = 1024;
-const INK = [43, 36, 32, 255];
-const WHITE = [255, 250, 240, 255];
-const ORANGE = [255, 138, 91, 255];
-const ORANGE_DARK = [224, 104, 60, 255];
-const ORANGE_LIGHT = [255, 170, 130, 255];
-const CLEAR = [0, 0, 0, 0];
-
-/** Rounded square, inset like a macOS icon, with a light top edge and a darker bottom. */
-function background(x, y) {
-  const lo = 4;
-  const hi = GRID - 5;
-  const r = 12;
-  if (x < lo || x > hi || y < lo || y > hi) return null;
-  const cx = Math.min(Math.max(x, lo + r), hi - r);
-  const cy = Math.min(Math.max(y, lo + r), hi - r);
-  if ((x - cx) ** 2 + (y - cy) ** 2 > r * r) return null;
-  if (y >= hi - 2) return ORANGE_DARK;
-  if (y <= lo + 1) return ORANGE_LIGHT;
-  return ORANGE;
+function scale(source, width, height, factor, background = null, monochrome = false) {
+  const target = createCanvas(width, height);
+  if (background) for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) {
+    const radius = Math.min(x, y, width - 1 - x, height - 1 - y);
+    if (radius >= width / 12 || (x >= width / 12 && x < width * 11 / 12) || (y >= width / 12 && y < height * 11 / 12)) setPx(target, x, y, background);
+  }
+  const dx = Math.floor((width - source.width * factor) / 2);
+  const dy = Math.floor((height - source.height * factor) / 2);
+  for (let sy = 0; sy < source.height; sy += 1) for (let sx = 0; sx < source.width; sx += 1) {
+    const offset = (sy * source.width + sx) * 4;
+    if (!source.data[offset + 3]) continue;
+    const color = monochrome ? [0, 0, 0, 255] : Array.from(source.data.slice(offset, offset + 4));
+    for (let yy = 0; yy < factor; yy += 1) for (let xx = 0; xx < factor; xx += 1) setPx(target, dx + sx * factor + xx, dy + sy * factor + yy, color);
+  }
+  return target;
 }
 
-/** Little speech bubble with "…" in the top right: this is a chat app. */
-function bubble(x, y) {
-  const [x0, x1, y0, y1] = [36, 55, 10, 22];
-  const tail = (x === 40 && y === 23) || ((x === 39 || x === 40) && y === 24) || (x === 38 && y === 25);
-  if (tail) return INK;
-  if (x < x0 || x > x1 || y < y0 || y > y1) return null;
-  const corner = (x === x0 || x === x1) && (y === y0 || y === y1);
-  if (corner) return null;
-  const edge = x === x0 || x === x1 || y === y0 || y === y1;
-  if (edge) return INK;
-  const dot = (y === 16 || y === 17) && [40, 41, 45, 46, 50, 51].includes(x);
-  return dot ? INK : WHITE;
+const ghost = drawFrame('ghost', 'talk', 1, 0);
+const icon = createCanvas(16, 16);
+const points = [];
+for (let y = 0; y < 16; y += 1) for (let x = 0; x < 16; x += 1) if (ghost.data[(y * 16 + x) * 4 + 3]) points.push([x, y]);
+const left = Math.min(...points.map(([x]) => x)); const top = Math.min(...points.map(([, y]) => y));
+const right = Math.max(...points.map(([x]) => x)); const bottom = Math.max(...points.map(([, y]) => y));
+const dx = Math.floor((16 - (right - left + 1)) / 2); const dy = Math.floor((16 - (bottom - top + 1)) / 2);
+for (const [x, y] of points) {
+  const offset = (y * 16 + x) * 4;
+  setPx(icon, dx + x - left, dy + y - top, Array.from(ghost.data.slice(offset, offset + 4)));
 }
+fs.writeFileSync(path.join(root, 'build/icon.png'), bytes(scale(icon, 1024, 1024, 64, ROOM_PALETTE[0])));
 
-function drawAppIcon() {
-  const mochi = drawMochi(FRAMES[2][0]); // mint, talking
-  const offset = { x: 11, y: 26 }; // 32×32 sprite, feet near the bottom of the tile
-  const logical = (x, y) => {
-    const fromBubble = bubble(x, y);
-    if (fromBubble) return fromBubble;
-    const sprite = mochi.get(`${x - offset.x},${y - offset.y}`);
-    if (sprite) return sprite;
-    return background(x, y) || CLEAR;
-  };
-  const scale = APP_ICON_SIZE / GRID;
-  return encodePng(APP_ICON_SIZE, APP_ICON_SIZE, (x, y) => logical(Math.floor(x / scale), Math.floor(y / scale)));
+const trayArt = createCanvas(11, 11);
+for (let y = 0; y < 11; y += 1) for (let x = 0; x < 11; x += 1) {
+  const offset = ((y + 4) * 16 + x + 3) * 4;
+  if (ghost.data[offset + 3]) setPx(trayArt, x, y, Array.from(ghost.data.slice(offset, offset + 4)));
 }
-
-/** Tray icon: the mochi's silhouette (macOS tints "Template" images itself). */
-function drawTray(size, rgb) {
-  const frame = drawMochi(FRAMES[0][0]);
-  const scale = 32 / size;
-  return encodePng(size, size, (x, y) => {
-    const filled = frame.has(`${Math.floor(x * scale)},${Math.floor(y * scale)}`);
-    return filled ? [...rgb, 255] : CLEAR;
-  });
-}
-
-const buildDir = path.join(__dirname, '..', 'build');
-const assetsDir = path.join(__dirname, '..', 'assets');
-fs.mkdirSync(buildDir, { recursive: true });
-fs.mkdirSync(assetsDir, { recursive: true });
-fs.writeFileSync(path.join(buildDir, 'icon.png'), drawAppIcon());
-fs.writeFileSync(path.join(assetsDir, 'trayTemplate.png'), drawTray(16, [0, 0, 0]));
-fs.writeFileSync(path.join(assetsDir, 'trayTemplate@2x.png'), drawTray(32, [0, 0, 0]));
-fs.writeFileSync(path.join(assetsDir, 'tray.png'), drawTray(32, ORANGE.slice(0, 3)));
-process.stdout.write(`app icon → ${buildDir}/icon.png\ntray icons → ${assetsDir}\n`);
+fs.writeFileSync(path.join(root, 'assets/tray.png'), bytes(scale(trayArt, 16, 16, 1)));
+fs.writeFileSync(path.join(root, 'assets/tray@2x.png'), bytes(scale(trayArt, 32, 32, 2)));
+fs.writeFileSync(path.join(root, 'assets/trayTemplate.png'), bytes(scale(trayArt, 22, 22, 2, null, true)));
+fs.writeFileSync(path.join(root, 'assets/trayTemplate@2x.png'), bytes(scale(trayArt, 44, 44, 4, null, true)));

@@ -1,26 +1,11 @@
-# 캐릭터·그림 저작권 (Assets)
+# 캐릭터 및 아이콘 자산
 
-Copyright (c) 2026 naego works. All rights reserved.
+다음 신규 생성 경로의 캐릭터·아이콘 자산과 생성기는 저장소 소유자 Manggae-ko의 2026년 저작물이며 모든 권리를 보유합니다.
 
-작당모의의 캐릭터와 그림은 코드 라이선스(`LICENSE`, PolyForm Noncommercial)에 **포함되지 않아요.**
-저작권자의 서면 허락 없이 복제, 수정, 배포, 상업적 이용을 할 수 없어요.
+- `src/renderer/sprites/{ghost,rabbit,penguin}-*.png`
+- `web/sprites/ghost-*.png`
+- `build/icon.png`, `assets/tray*.png`
+- `docs/characters-preview.png`, `docs/character-template.png`
+- `scripts/sprites/*`, `scripts/make-sprites.js`, `scripts/make-icons.js`
 
-해당하는 것
-- 기본 캐릭터 11종(말랑이, 고양이, 강아지, 토끼, 곰, 펭귄, 병아리, 개구리, 햄스터, 유령, 여우)의 디자인과 모든 스프라이트 이미지
-  (`src/renderer/sprites/`, `web/sprites/`, `docs/characters-preview.png`)
-- 앱 아이콘과 메뉴바 아이콘 (`build/icon.png`, `assets/`)
-- 이 그림들을 만들어 내는 캐릭터 정의(`scripts/sprites/species.js`)로 생성한 결과물
-- 앱과 다운로드 페이지의 화면 디자인
-
-예외
-- `docs/character-template.png`(빈 칸 템플릿)는 자유롭게 써도 돼요.
-- 사용자가 직접 그려서 앱에 올린 이미지의 저작권은 그 사용자에게 있어요.
-- 갈무리 폰트 등 다른 사람의 저작물은 각자의 라이선스를 따라요 (`THIRD_PARTY_NOTICES.md`).
-
-이용 문의: https://naegoworks.com
-
----
-
-The characters, sprites, icons and visual design of Jakdang (작당모의) are not covered by the
-code license. All rights reserved. No copying, modification, distribution or commercial use
-without written permission from the copyright holder.
+이 자산의 이용 조건은 소스 코드에 적용되는 `LICENSE`와 별개입니다.

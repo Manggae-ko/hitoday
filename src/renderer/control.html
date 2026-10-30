@@ -18,7 +18,8 @@
 
     <nav class="tabs" role="tablist" aria-label="화면">
       <button type="button" role="tab" id="tab-room" aria-controls="panel-room" aria-selected="true">방</button>
-      <button type="button" role="tab" id="tab-me" aria-controls="panel-me" aria-selected="false">내 캐릭터</button>
+      <button type="button" role="tab" id="tab-me" aria-controls="panel-me" aria-selected="false" tabindex="-1">내 캐릭터</button>
+      <button type="button" role="tab" id="tab-schedule" aria-controls="panel-schedule" aria-selected="false" tabindex="-1">일정</button>
     </nav>
 
     <main>
@@ -114,6 +115,43 @@
             <button type="button" class="btn btn-small" id="server-save">저장</button>
           </div>
         </details>
+      </section>
+
+      <!-- 일정 -->
+      <section id="panel-schedule" role="tabpanel" aria-labelledby="tab-schedule" hidden>
+        <form id="schedule-form" class="sched-form">
+          <div class="field">
+            <label class="label" for="sched-from">시작</label>
+            <input type="date" id="sched-from" required />
+          </div>
+          <div class="field">
+            <label class="label" for="sched-to">종료</label>
+            <input type="date" id="sched-to" />
+          </div>
+          <div class="field">
+            <label class="label" for="sched-kind">종류</label>
+            <select id="sched-kind" required></select>
+          </div>
+          <div class="field">
+            <label class="label" for="sched-note">메모</label>
+            <input id="sched-note" maxlength="12" autocomplete="off" placeholder="12자까지" />
+          </div>
+          <button type="submit" class="btn btn-primary sched-add" id="sched-add">추가</button>
+          <p class="hint sched-full" id="sched-full" hidden>일정은 30개까지 저장할 수 있어요. 지난 일정이나 안 쓰는 일정을 지워 주세요.</p>
+        </form>
+
+        <h2 class="label">내 일정</h2>
+        <ul class="sched-list" id="sched-list" aria-label="내 일정"></ul>
+        <p class="notice" id="schedule-msg" role="status" aria-live="polite"></p>
+
+        <p class="hint" id="sched-outside">방에 들어가면 함께 볼 수 있어요</p>
+        <div class="sched-scroll" id="sched-scroll" role="region" tabindex="0" aria-label="방 일정표" hidden>
+          <table class="sched-table">
+            <caption class="sr-only">방 멤버의 2주 일정</caption>
+            <thead><tr id="sched-head"></tr></thead>
+            <tbody id="sched-body"></tbody>
+          </table>
+        </div>
       </section>
 
       <p class="notice" id="notice" role="status" aria-live="polite"></p>

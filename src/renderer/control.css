@@ -375,7 +375,8 @@ input[type="date"], select { color-scheme: light dark; }
 .sched-scroll:focus-visible { outline: 3px solid var(--accent-deep); outline-offset: 2px; }
 .sched-table { border-collapse: separate; border-spacing: 0; font-size: var(--text-xs); }
 .sched-table th,
-.sched-table td { padding: 0; text-align: center; border-bottom: 1px solid var(--ink-faint); }
+/* position: relative — 칸 안 .sr-only(absolute)가 문서 폭을 늘리지 않게 */
+.sched-table td { position: relative; padding: 0; text-align: center; border-bottom: 1px solid var(--ink-faint); }
 .sched-table thead th {
   min-width: 30px;
   padding: 4px 0;

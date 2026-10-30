@@ -35,6 +35,9 @@ function cellFor(schedule, date) {
   return { kind: entry.kind, short, full };
 }
 
+/** 'YYYY-MM-DD' 의 n일 뒤 'YYYY-MM-DD' (일정 입력 상한 계산용) */
+const dateAfter = (today, n) => dayAfter(today, n).date;
+
 /** members: 파싱된 방 멤버(schedule 포함), today: 'YYYY-MM-DD' → { days ×14, rows } */
 function buildScheduleView(members, today) {
   const days = Array.from({ length: VIEW_DAYS }, (_, n) => dayAfter(today, n));
@@ -45,4 +48,4 @@ function buildScheduleView(members, today) {
   return { days, rows };
 }
 
-module.exports = { buildScheduleView, VIEW_DAYS };
+module.exports = { buildScheduleView, dateAfter, VIEW_DAYS };

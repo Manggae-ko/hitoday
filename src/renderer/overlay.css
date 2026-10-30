@@ -154,7 +154,7 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.has-status .tag { opacity: 1; }
+.has-status .tag { opacity: 1; border-radius: 10px; }
 .has-status .bubble { bottom: calc(100% + 44px); }
 .has-status .hand-picker { bottom: calc(100% + 48px); }
 /* 연차·출장·반차: 쉬는 포즈(흐림·zzz 없음). 걷기·손 흔들기 중엔 덮지 않음 */

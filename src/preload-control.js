@@ -14,4 +14,5 @@ contextBridge.exposeInMainWorld('hitoday', {
   copyRoom: () => ipcRenderer.invoke('control:copy-room'),
   send: (message) => ipcRenderer.invoke('control:send', String(message)),
   save: (changes) => ipcRenderer.invoke('control:save', changes),
+  setSchedule: (entries) => ipcRenderer.invoke('control:set-schedule', entries),
 });

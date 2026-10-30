@@ -5,3 +5,4 @@ dist/
 snapshots/
 data/
 deploy/.env
+_work/

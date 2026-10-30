@@ -346,7 +346,7 @@ if (require.main === module) {
     process.exit(0);
   }));
   relay.ready.then(() => {
-    log(`작당모의 relay listening on :${port}`);
+    log(`오늘뭐해? relay listening on :${port}`);
     notifier.notify(`🔄 서버가 켜졌어요 (버전 ${version})`, { now: true });
   });
 }

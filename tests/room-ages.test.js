@@ -48,7 +48,7 @@ test('a room code can be used again once it has been forgotten', () => {
 });
 
 test('ages survive a restart', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jakdang-rooms-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hitoday-rooms-'));
   const file = path.join(dir, 'rooms.json');
   let clock = 0;
   const first = createRoomAges({ file, now: () => clock });

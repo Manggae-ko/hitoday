@@ -12,13 +12,8 @@ const REPO_PATTERN = /^[\w.-]+\/[\w.-]+$/;
 const GA_ID_PATTERN = /^G-[A-Z0-9]{4,16}$/;
 const MIN_STATS_TOKEN_LENGTH = 16;
 // Fixed installer names (see "artifactName" in package.json), so "latest" links never change.
-// Macs get a per-chip build (half the size of a universal one): Apple chip by default.
-const ASSETS = {
-  mac: 'Jakdang-mac-arm64.dmg',
-  'mac-intel': 'Jakdang-mac-x64.dmg',
-  win: 'Jakdang-Setup.exe',
-};
-const STAT_FOR = { mac: 'download_mac', 'mac-intel': 'download_mac', win: 'download_win' };
+const ASSETS = { win: 'HIToday-Setup.exe' };
+const STAT_FOR = { win: 'download_win' };
 
 const SECURITY_HEADERS = {
   'x-content-type-options': 'nosniff',
@@ -169,7 +164,7 @@ function createWebHandler({
         etag: `"${avatar.version}"`,
       }, avatar.bytes);
     }
-    const match = pathname.match(/^\/download\/(mac|mac-intel|win)$/);
+    const match = pathname.match(/^\/download\/(win)$/);
     if (match) {
       const target = downloadUrl(repo, match[1]);
       if (!target) return reply(503, { 'content-type': 'text/plain; charset=utf-8' }, '아직 다운로드 준비 중이에요.');

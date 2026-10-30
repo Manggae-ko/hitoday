@@ -1,23 +1,22 @@
 {
-  "name": "jakdang",
+  "name": "hitoday",
   "version": "0.1.6",
-  "description": "작당모의: 친구들 캐릭터가 서로의 바탕화면 아래에 모여 사는 앱",
+  "description": "오늘뭐해?: 친구들 캐릭터가 서로의 바탕화면 아래에 모여 사는 앱",
   "main": "src/main/main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
     "server": "node server/relay.js",
     "test": "node --test --test-timeout=20000 tests/*.test.js",
-    "demo:a": "JAKDANG_PROFILE=a JAKDANG_REGION=left electron .",
-    "demo:b": "JAKDANG_PROFILE=b JAKDANG_REGION=right electron .",
+    "demo:a": "HITODAY_PROFILE=a HITODAY_REGION=left electron .",
+    "demo:b": "HITODAY_PROFILE=b HITODAY_REGION=right electron .",
     "icons": "node scripts/make-icons.js",
     "snapshot": "electron scripts/snapshot.js",
-    "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win",
     "load-test": "node scripts/load-test.js",
     "check:picker": "node scripts/check-picker.js"
   },
-  "jakdang": {
+  "hitoday": {
     "server": ""
   },
   "dependencies": {
@@ -29,8 +28,8 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "app.jakdang.desktop",
-    "productName": "Jakdang",
+    "appId": "app.hitoday.desktop",
+    "productName": "HIToday",
     "directories": {
       "output": "dist"
     },
@@ -43,81 +42,28 @@
       "LICENSE-ASSETS.md",
       "THIRD_PARTY_NOTICES.md"
     ],
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "arm64",
-            "x64"
-          ]
-        }
-      ],
-      "artifactName": "Jakdang-mac-${arch}.${ext}",
-      "category": "public.app-category.social-networking",
-      "extendInfo": {
-        "LSUIElement": true,
-        "CFBundleDisplayName": "Jakdang",
-        "LSHasLocalizedDisplayName": true
-      },
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
-      "extraResources": [
-        {
-          "from": "build/mac-locales/ko.lproj",
-          "to": "ko.lproj"
-        },
-        {
-          "from": "build/mac-locales/en.lproj",
-          "to": "en.lproj"
-        }
-      ]
-    },
     "win": {
       "target": [
         "nsis"
       ]
     },
     "nsis": {
-      "artifactName": "Jakdang-Setup.${ext}",
-      "shortcutName": "작당모의",
+      "artifactName": "HIToday-Setup.${ext}",
+      "shortcutName": "오늘뭐해",
       "oneClick": true,
       "perMachine": false
-    },
-    "appx": {
-      "applicationId": "Jakdang",
-      "displayName": "작당모의",
-      "backgroundColor": "transparent",
-      "languages": [
-        "ko-KR",
-        "en-US"
-      ],
-      "addAutoLaunchExtension": true,
-      "artifactName": "Jakdang-Store.${ext}"
     },
     "publish": {
       "provider": "github",
       "releaseType": "release",
-      "owner": "donghyeun02",
-      "repo": "jakdang"
-    },
-    "dmg": {
-      "format": "ULFO"
+      "owner": "Manggae-ko",
+      "repo": "hitoday"
     }
   },
   "license": "PolyForm-Noncommercial-1.0.0",
-  "author": "naego works",
+  "author": "Manggae-ko",
   "repository": {
     "type": "git",
-    "url": "https://github.com/donghyeun02/jakdang.git"
+    "url": "https://github.com/Manggae-ko/hitoday.git"
   }
 }

@@ -3,15 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'" />
-    <title>작당모의</title>
+    <title>오늘뭐해?</title>
     <link rel="stylesheet" href="tokens.css" />
     <link rel="stylesheet" href="control.css" />
   </head>
   <body>
     <header class="topbar">
       <div class="brand">
-        <span class="sprite logo" aria-hidden="true"><img src="sprites/mochi-0.png" alt="" /></span>
-        <h1>작당모의</h1>
+        <span class="sprite logo" aria-hidden="true"><img src="sprites/ghost-0.png" alt="" /></span>
+        <h1>오늘뭐해?</h1>
       </div>
       <p class="status" id="status" data-connected="false">연결 중</p>
     </header>
@@ -27,10 +27,10 @@
         <!-- not in a room yet -->
         <div class="lobby" id="lobby">
           <div class="stage-strip" aria-hidden="true">
-            <span class="sprite walk"><img src="sprites/cat-1.png" alt="" /></span>
+            <span class="sprite walk"><img src="sprites/ghost-1.png" alt="" /></span>
             <span class="sprite"><img src="sprites/penguin-2.png" alt="" /></span>
-            <span class="sprite talk"><img src="sprites/mochi-0.png" alt="" /></span>
-            <span class="sprite"><img src="sprites/frog-3.png" alt="" /></span>
+            <span class="sprite talk"><img src="sprites/ghost-0.png" alt="" /></span>
+            <span class="sprite"><img src="sprites/rabbit-3.png" alt="" /></span>
             <span class="sprite"><img src="sprites/rabbit-4.png" alt="" /></span>
           </div>
           <h2 class="lobby-title">친구들을<br />바탕화면에 초대해요</h2>
@@ -101,7 +101,7 @@
             직접 그린 이미지 올리기
             <input type="file" id="avatar-file" accept="image/png" />
           </label>
-          <p class="hint">PNG · 32×32 한 장 또는 128×128 시트 · 32KB 이하</p>
+          <p class="hint">PNG · 16×16 한 장 또는 64×64 시트(16px 칸 4×4) · 32KB 이하</p>
           <button type="button" class="link" id="avatar-reset" hidden>올린 이미지 지우고 기본 캐릭터로</button>
           <p class="hint">바탕화면의 내 캐릭터를 끌면 자리를 옮길 수 있어요.</p>
           <button type="button" class="link" id="spot-reset" hidden>내 자리 원래대로</button>

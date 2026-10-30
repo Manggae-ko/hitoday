@@ -3,9 +3,9 @@
 // Whoever talks gets a bubble; people whose app is off doze (dimmed, zzz).
 
 const { createCharacter, colorFor } = window.Character;
-const api = window.jakdang;
+const api = window.hitoday;
 
-const CHAR_WIDTH = 96;
+const CHAR_WIDTH = 48;
 const WALK_SPEED_PX_PER_S = 170;
 const EDGE_INSET = 40;
 const MAX_GAP = 120;
@@ -174,6 +174,7 @@ function updateLineup({ me, members }) {
     // While I'm dragging, my own spot is whatever is under my mouse.
     if (!(drag && drag.actor === actor)) actor.spot = member.x ?? null;
     actor.character.setLabel(member.name);
+    actor.character.root.querySelector('.tag').title = member.name;
     actor.character.setLook(colorFor(member.code, member.color), member.avatar, member.character);
     actor.character.root.classList.toggle('is-asleep', !member.online);
     actor.character.root.classList.toggle('is-away', member.online && member.away === true);
@@ -219,7 +220,7 @@ function memberSays({ from, message }) {
 // Runners line up on the left, one lane each, and run right on the server's split times
 // (so every screen shows the same race). Afterwards everyone walks back to their spot.
 
-const LANE_PX = 26;
+const LANE_PX = 22;
 const BANNER_CLEAR_PX = 320; // room on the right for the result sign
 const PODIUM_GAP_PX = 104; // finishers stand side by side, first place nearest the line
 const PODIUM_STEP_MS = 450;

@@ -24,10 +24,10 @@ const {
   loadOwnAvatar, saveOwnAvatar, clearOwnAvatar, createAvatarCache, toLook,
 } = require('./avatars');
 
-// JAKDANG_PROFILE=b lets two copies run side by side on one machine (handy for filming).
-const profileName = process.env.JAKDANG_PROFILE;
+// HITODAY_PROFILE=b lets two copies run side by side on one machine (handy for filming).
+const profileName = process.env.HITODAY_PROFILE;
 if (profileName && /^[a-z0-9-]{1,16}$/i.test(profileName)) {
-  app.setPath('userData', path.join(app.getPath('appData'), `jakdang-${profileName}`));
+  app.setPath('userData', path.join(app.getPath('appData'), `hitoday-${profileName}`));
 }
 
 // One copy per profile. A second launch (double-clicked shortcut, login item plus the
@@ -45,7 +45,7 @@ const ERROR_TEXT = {
   'game-running': '이미 게임 중이에요. 끝나고 다시 해요.',
   'need-two': '게임은 접속한 사람이 2명 이상일 때 할 수 있어요.',
   'not-png': 'PNG 파일만 올릴 수 있어요.',
-  'bad-size': '32×32 한 장이나 128×128 시트만 올릴 수 있어요.',
+  'bad-size': '16×16 한 장이나 64×64 시트만 올릴 수 있어요.',
   'too-big': '32KB 이하 이미지로 올려 주세요.',
 };
 // Late or duplicate moves are harmless; don't bother the user about them.
@@ -79,7 +79,7 @@ function myColor() {
   return colorFor(state.profile.code, me ? me.color : null);
 }
 
-/** How a member looks: their uploaded image (mine straight from disk), else the built-in mochi. */
+/** How a member looks: their uploaded image (mine straight from disk), else the built-in ghost. */
 function lookOf(member) {
   if (member.code === state.profile.code) {
     return state.ownAvatar ? toLook(state.ownAvatar.bytes, state.ownAvatar.kind) : null;
@@ -337,7 +337,7 @@ app.whenReady().then(() => {
     onMessage: handleServerMessage,
     onStatus: ({ connected, replaced }) => {
       if (replaced) {
-        pushState({ connected: false, notice: '다른 곳에서 같은 작당모의가 켜져서 여기는 연결을 멈췄어요. 이 기기에서 쓰려면 앱을 다시 켜 주세요.' });
+        pushState({ connected: false, notice: '다른 곳에서 같은 오늘뭐해?가 켜져서 여기는 연결을 멈췄어요. 이 기기에서 쓰려면 앱을 다시 켜 주세요.' });
         return;
       }
       pushState({ connected });

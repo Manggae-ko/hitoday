@@ -1,4 +1,4 @@
-# Push to main/dev (server, shared, web or deploy changes) → run the tests, then wait
+# Push to main (server, shared, web or deploy changes) → run the tests, then wait
 # until the server reports the new commit at /version.
 #
 # Deploys are pull-based: the server checks GitHub every 2 minutes and updates itself
@@ -8,7 +8,7 @@ name: deploy
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
     paths:
       - "server/**"
       - "shared/**"
@@ -40,8 +40,12 @@ jobs:
     steps:
       - name: Wait for the server to pick up this commit
         env:
-          DOMAIN: ${{ vars.JAKDANG_DOMAIN || 'jakdang.naegoworks.com' }}
+          DOMAIN: ${{ vars.HITODAY_DOMAIN || '' }}
         run: |
+          if [ -z "$DOMAIN" ]; then
+            echo "HITODAY_DOMAIN is empty; skipping /version polling."
+            exit 0
+          fi
           want="${GITHUB_SHA::7}"
           for i in $(seq 1 60); do
             got="$(curl -fsS "https://$DOMAIN/version" || true)"
@@ -53,5 +57,5 @@ jobs:
             echo "server has '$got', waiting for $want..."
             sleep 15
           done
-          echo "server did not update within 15 minutes (check /var/log/jakdang-update.log on the server)"
+          echo "server did not update within 15 minutes (check /var/log/hitoday-update.log on the server)"
           exit 1

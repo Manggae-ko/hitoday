@@ -21,7 +21,7 @@ const seconds = (ms) => `${(ms / 1000).toFixed(2)}초`;
 /**
  * @param stage  { root, actor(code), say(code, text, ms), hushAll(), mark(code, cls, on), clearMarks(cls),
  *                 race(runners, delayMs, order) → Promise, raceHome() }
- * @param api    window.jakdang
+ * @param api    window.hitoday
  */
 function createGameStage(stage, api) {
   const banner = document.createElement('div');

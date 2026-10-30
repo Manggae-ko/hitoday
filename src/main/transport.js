@@ -5,6 +5,7 @@ const { isAvatarVersion } = require('../../shared/avatar');
 const { isCharacter, DEFAULT_CHARACTER } = require('../../shared/characters');
 const {
   isCode, cleanText, spotOrNull, MAX_NAME_LENGTH, MAX_MESSAGE_LENGTH, MAX_ROOM_MEMBERS, ROOM_HISTORY, GAMES, RPS_HANDS,
+  STATUS_KINDS, MAX_NOTE_LENGTH, parseScheduleEntries,
 } = require('../../shared/protocol');
 
 const MIN_RETRY_MS = 1_000;
@@ -18,6 +19,13 @@ function parseLine(data) {
   return { from: data.from, fromName, message, at: Number(data.at) || 0 };
 }
 
+// 지금 상태: 아는 kind 와 깨끗한 label 일 때만, 아니면 null
+function parseStatus(value) {
+  if (!value || typeof value !== 'object' || !STATUS_KINDS.includes(value.kind)) return null;
+  const label = cleanText(value.label, MAX_NOTE_LENGTH);
+  return label ? { kind: value.kind, label } : null;
+}
+
 function parseMember(data) {
   const name = cleanText(data && data.name, MAX_NAME_LENGTH);
   if (!isCode(data && data.code) || !name) return null;
@@ -26,8 +34,19 @@ function parseMember(data) {
   const avatarKind = avatar && ['single', 'sheet'].includes(data.avatarKind) ? data.avatarKind : null;
   const character = isCharacter(data.character) ? data.character : DEFAULT_CHARACTER;
   const online = data.online === true;
+  const schedule = parseScheduleEntries(data.schedule);
   return {
-    code: data.code, name, character, color, x: spotOrNull(data.x), online, away: online && data.away === true, avatar, avatarKind,
+    code: data.code,
+    name,
+    character,
+    color,
+    x: spotOrNull(data.x),
+    online,
+    away: online && data.away === true,
+    avatar,
+    avatarKind,
+    status: parseStatus(data.status),
+    schedule: schedule.ok ? schedule.value : [],
   };
 }
 
@@ -35,7 +54,8 @@ function parseRoom(data) {
   if (!isCode(data.room) || !Array.isArray(data.members)) return null;
   const members = data.members.slice(0, MAX_ROOM_MEMBERS).map(parseMember).filter(Boolean);
   const history = (Array.isArray(data.history) ? data.history : []).slice(-ROOM_HISTORY).map(parseLine).filter(Boolean);
-  return { type: 'room', room: data.room, members, history };
+  const today = typeof data.today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.today) ? data.today : null;
+  return { type: 'room', room: data.room, members, history, today };
 }
 
 const PHASES = ['pick', 'ready', 'go', 'result'];
@@ -102,6 +122,8 @@ function parseServerMessage(raw) {
       return { type: 'error', reason: String(data.reason || 'unknown') };
     case 'welcome':
       return { type: 'welcome' };
+    case 'schedule-saved':
+      return { type: 'schedule-saved' };
     default:
       return null;
   }

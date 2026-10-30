@@ -7,6 +7,7 @@ const path = require('node:path');
 const { loadProfile, applyChanges, withRoom } = require('../src/main/profile');
 const { createTransport, parseServerMessage } = require('../src/main/transport');
 const { createRelay } = require('../server/relay');
+const { buildScheduleView } = require('../src/main/schedule-view');
 
 const base = { code: 'AAAAAA', name: '나', room: '', serverUrl: 'ws://localhost:8787' };
 const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'hitoday-'));
@@ -58,8 +59,8 @@ test('parseServerMessage drops malformed members and lines', () => {
     history: [{ from: 'AAAAAA', fromName: '동동', message: 'hi', at: 1 }, { from: 'AAAAAA' }],
   }));
   assert.deepEqual(room.members, [
-    { code: 'AAAAAA', name: '동동', character: 'ghost', color: 3, x: null, online: true, away: false, avatar: null, avatarKind: null },
-    { code: 'BBBBBB', name: '민지', character: 'ghost', color: null, x: null, online: true, away: true, avatar: null, avatarKind: null },
+    { code: 'AAAAAA', name: '동동', character: 'ghost', color: 3, x: null, online: true, away: false, avatar: null, avatarKind: null, status: null, schedule: [] },
+    { code: 'BBBBBB', name: '민지', character: 'ghost', color: null, x: null, online: true, away: true, avatar: null, avatarKind: null, status: null, schedule: [] },
   ]);
   assert.equal(room.history.length, 1);
 });
@@ -169,4 +170,76 @@ test('three app transports share a room through the relay', async () => {
     made.forEach((t) => t.stop());
     await relay.close();
   }
+});
+
+// --- 일정: parseMember·표 계산 ---
+
+const roomWith = (member, extra = {}) => parseServerMessage(JSON.stringify({
+  type: 'room', room: 'ROOM22', members: [{ code: 'AAAAAA', name: '동동', online: true, ...member }], history: [], ...extra,
+}));
+
+test('parseMember keeps status and schedule', () => {
+  const schedule = [
+    { from: '2026-11-02', to: '2026-11-03', kind: 'trip' },
+    { from: '2026-10-30', to: '2026-10-30', kind: 'half-pm', note: '병원' },
+  ];
+  const room = roomWith({ status: { kind: 'half-pm', label: '오후반차' }, schedule }, { today: '2026-10-30' });
+  const [member] = room.members;
+  assert.deepEqual(member.status, { kind: 'half-pm', label: '오후반차' });
+  assert.deepEqual(member.schedule, [schedule[1], schedule[0]]); // from 오름차순
+  assert.equal(room.today, '2026-10-30');
+});
+
+test('parseMember drops unknown status kind', () => {
+  assert.equal(roomWith({ status: { kind: 'vacation', label: '휴가' } }).members[0].status, null);
+  assert.equal(roomWith({ status: { kind: 'leave', label: '   ' } }).members[0].status, null);
+  assert.equal(roomWith({ status: 'leave' }).members[0].status, null);
+});
+
+test('parseMember drops oversized schedule', () => {
+  const entry = { from: '2026-10-30', to: '2026-10-30', kind: 'out' };
+  assert.deepEqual(roomWith({ schedule: Array(31).fill(entry) }).members[0].schedule, []);
+  assert.equal(roomWith({ schedule: Array(30).fill(entry) }).members[0].schedule.length, 30);
+  assert.deepEqual(roomWith({ schedule: [{ ...entry, kind: 'nap' }] }).members[0].schedule, []);
+});
+
+test('parseMember defaults when fields missing', () => {
+  const room = roomWith({}, { today: '10/30' });
+  assert.equal(room.members[0].status, null);
+  assert.deepEqual(room.members[0].schedule, []);
+  assert.equal(room.today, null);
+  assert.equal(roomWith({}).today, null);
+});
+
+const viewOf = (schedule, today = '2026-10-30') => buildScheduleView([{ code: 'AAAAAA', name: '동동', schedule }], today);
+
+test('schedule view marks weekends', () => {
+  const { days, rows } = viewOf([]);
+  assert.equal(days.length, 14);
+  assert.deepEqual(days[0], { date: '2026-10-30', label: '10/30', dow: '금', weekend: false, isToday: true });
+  assert.deepEqual(days.filter((d) => d.weekend).map((d) => d.date), ['2026-10-31', '2026-11-01', '2026-11-07', '2026-11-08']);
+  assert.equal(days.filter((d) => d.isToday).length, 1);
+  assert.deepEqual(rows[0].cells, Array(14).fill(null));
+});
+
+test('schedule view uses status priority', () => {
+  const { rows } = viewOf([
+    { from: '2026-10-30', to: '2026-10-30', kind: 'lunch' },
+    { from: '2026-10-30', to: '2026-11-02', kind: 'trip' },
+    { from: '2026-11-03', to: '2026-11-03', kind: 'note', note: '병원 예약' },
+  ]);
+  const { cells } = rows[0];
+  assert.deepEqual(cells[0], { kind: 'trip', short: '출장', full: '출장' });
+  assert.equal(cells[3].kind, 'trip');
+  assert.deepEqual(cells[4], { kind: 'note', short: '병원', full: '메모 · 병원 예약' });
+  assert.equal(cells[5], null);
+});
+
+test('schedule view crosses month boundary', () => {
+  const { days, rows } = viewOf([{ from: '2026-10-31', to: '2026-11-01', kind: 'leave' }]);
+  assert.equal(days[1].label, '10/31');
+  assert.equal(days[2].label, '11/1');
+  assert.equal(days[13].date, '2026-11-12');
+  assert.deepEqual(rows[0].cells.map((c) => c && c.short).slice(0, 4), [null, '연차', '연차', null]);
+  assert.equal(buildScheduleView([], '2026-12-25').days[13].date, '2027-01-07');
 });

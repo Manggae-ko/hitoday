@@ -9,7 +9,7 @@ const { createTransport, parseServerMessage } = require('../src/main/transport')
 const { createRelay } = require('../server/relay');
 
 const base = { code: 'AAAAAA', name: '나', room: '', serverUrl: 'ws://localhost:8787' };
-const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'jakdang-'));
+const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'hitoday-'));
 
 test('loadProfile creates a code and a distinct default name once', () => {
   const dir = tmpDir();
@@ -58,8 +58,8 @@ test('parseServerMessage drops malformed members and lines', () => {
     history: [{ from: 'AAAAAA', fromName: '동동', message: 'hi', at: 1 }, { from: 'AAAAAA' }],
   }));
   assert.deepEqual(room.members, [
-    { code: 'AAAAAA', name: '동동', character: 'mochi', color: 3, x: null, online: true, away: false, avatar: null, avatarKind: null },
-    { code: 'BBBBBB', name: '민지', character: 'mochi', color: null, x: null, online: true, away: true, avatar: null, avatarKind: null },
+    { code: 'AAAAAA', name: '동동', character: 'ghost', color: 3, x: null, online: true, away: false, avatar: null, avatarKind: null },
+    { code: 'BBBBBB', name: '민지', character: 'ghost', color: null, x: null, online: true, away: true, avatar: null, avatarKind: null },
   ]);
   assert.equal(room.history.length, 1);
 });
@@ -68,7 +68,7 @@ test('friend images are downloaded once, checked, and refused if they do not mat
   const { createAvatarCache, httpBase } = require('../src/main/avatars');
   const { encodePng } = require('../scripts/png');
   const { checkAvatar } = require('../shared/avatar');
-  const image = encodePng(32, 32, () => [10, 20, 30, 255]);
+  const image = encodePng(16, 16, () => [10, 20, 30, 255]);
   const { version } = checkAvatar(image);
   let calls = 0;
   let loaded = 0;

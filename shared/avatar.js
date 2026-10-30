@@ -1,11 +1,11 @@
 // Uploaded character images: checked on the app before sending and again on the server.
-// Allowed: a PNG that is either one 32×32 frame or a 128×128 sheet (see docs/CHARACTER_GUIDE.md).
+// Allowed: a PNG that is either one 16×16 frame or a 64×64 sheet (see docs/CHARACTER_GUIDE.md).
 
 const crypto = require('node:crypto');
 
 const MAX_AVATAR_BYTES = 32 * 1024;
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const SIZES = { 32: 'single', 128: 'sheet' };
+const SIZES = { 16: 'single', 64: 'sheet' };
 
 /**
  * @param {Buffer} bytes

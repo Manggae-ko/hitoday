@@ -164,8 +164,8 @@ test("everyone sees each member's chosen character, and a re-hello updates it", 
     await a.opened;
     a.say({ type: 'hello', code: 'AAAAAA', key: keyFor('AAAAAA'), name: '에이', room: 'ZOO222', character: 'penguin' });
     assert.equal((await a.next('room')).members[0].character, 'penguin');
-    a.say({ type: 'hello', code: 'AAAAAA', key: keyFor('AAAAAA'), name: '에이', room: 'ZOO222', character: 'frog' });
-    assert.equal((await a.next('room', (r) => r.members[0].character === 'frog')).members[0].character, 'frog');
+    a.say({ type: 'hello', code: 'AAAAAA', key: keyFor('AAAAAA'), name: '에이', room: 'ZOO222', character: 'rabbit' });
+    assert.equal((await a.next('room', (r) => r.members[0].character === 'rabbit')).members[0].character, 'rabbit');
     a.ws.close();
   }));
 

@@ -59,6 +59,7 @@ body {
 @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 
 .tag {
+  box-sizing: border-box;
   position: absolute;
   bottom: 100%;
   left: 50%;

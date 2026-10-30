@@ -115,14 +115,14 @@ test('statusAt observes half-day and lunch boundaries', () => {
   const am = [{ from: day, to: day, kind: 'half-am' }];
   const pm = [{ from: day, to: day, kind: 'half-pm' }];
   const lunch = [{ from: day, to: day, kind: 'lunch' }];
-  assert.equal(statusAt(am, at(11, 59)).kind, 'half-am');
-  assert.equal(statusAt(am, at(12, 0)), null);
-  assert.equal(statusAt(pm, at(11, 59)), null);
-  assert.equal(statusAt(pm, at(12, 0)).kind, 'half-pm');
-  assert.equal(statusAt(lunch, at(11, 29)), null);
-  assert.equal(statusAt(lunch, at(11, 30)).kind, 'lunch');
-  assert.equal(statusAt(lunch, at(13, 29)).kind, 'lunch');
-  assert.equal(statusAt(lunch, at(13, 30)), null);
+  assert.equal(statusAt(am, at(14, 29)).kind, 'half-am');
+  assert.equal(statusAt(am, at(14, 30)), null);
+  assert.equal(statusAt(pm, at(0, 0)).kind, 'half-pm');
+  assert.equal(statusAt(pm, at(23, 59)).kind, 'half-pm');
+  assert.equal(statusAt(lunch, at(8, 59)), null);
+  assert.equal(statusAt(lunch, at(9, 0)).kind, 'lunch');
+  assert.equal(statusAt(lunch, at(12, 59)).kind, 'lunch');
+  assert.equal(statusAt(lunch, at(13, 0)), null);
 });
 
 test('statusAt uses priority and keeps the first same-kind entry', () => {

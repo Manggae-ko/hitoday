@@ -525,7 +525,7 @@ test('schedule: only own schedule can be edited', () =>
   }, { now: () => Date.UTC(2026, 9, 30, 3) }));
 
 test('schedule: boundary rebroadcast', async () => {
-  let clock = Date.UTC(2026, 9, 30, 2, 29);
+  let clock = Date.UTC(2026, 9, 29, 23, 59); // KST 08:59
   const relay = createRelay({ port: 0, now: () => clock });
   await relay.ready;
   try {
@@ -534,7 +534,7 @@ test('schedule: boundary rebroadcast', async () => {
     a.say({ type: 'set-schedule', entries: [scheduleEntry('lunch')] });
     await a.next('schedule-saved');
     await a.next('room');
-    clock = Date.UTC(2026, 9, 30, 2, 31);
+    clock = Date.UTC(2026, 9, 30, 0, 1); // KST 09:01 → 따점 표시 시작
     assert.equal(relay.tickSchedules(), true);
     const boundary = await a.next('room');
     assert.deepEqual(boundary.members[0].status, { kind: 'lunch', label: '따점' });
@@ -611,10 +611,10 @@ test('schedule: rejects bad entries for every contract violation', () =>
 
 test('schedule: boundary rebroadcast covers every KST segment once', async () => {
   const transitions = [
-    [Date.UTC(2026, 9, 29, 14, 59), Date.UTC(2026, 9, 29, 15, 1)],
-    [Date.UTC(2026, 9, 30, 2, 29), Date.UTC(2026, 9, 30, 2, 31)],
-    [Date.UTC(2026, 9, 30, 2, 59), Date.UTC(2026, 9, 30, 3, 1)],
-    [Date.UTC(2026, 9, 30, 4, 29), Date.UTC(2026, 9, 30, 4, 31)],
+    [Date.UTC(2026, 9, 29, 14, 59), Date.UTC(2026, 9, 29, 15, 1)], // KST 00:00
+    [Date.UTC(2026, 9, 29, 23, 59), Date.UTC(2026, 9, 30, 0, 1)], // KST 09:00
+    [Date.UTC(2026, 9, 30, 3, 59), Date.UTC(2026, 9, 30, 4, 1)], // KST 13:00
+    [Date.UTC(2026, 9, 30, 5, 29), Date.UTC(2026, 9, 30, 5, 31)], // KST 14:30
   ];
   for (let index = 0; index < transitions.length; index += 1) {
     let clock = transitions[index][0];

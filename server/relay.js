@@ -337,7 +337,7 @@ function createRelay({
   const roomSweeper = setInterval(sweepRooms, ROOM_SWEEP_EVERY_MS);
   if (roomSweeper.unref) roomSweeper.unref();
 
-  const segmentKey = (ms) => `${kstDate(ms)}#${[690, 720, 810].filter((minute) => kstMinutes(ms) >= minute).length}`;
+  const segmentKey = (ms) => `${kstDate(ms)}#${[540, 780, 870].filter((minute) => kstMinutes(ms) >= minute).length}`;
   let lastSegment = segmentKey(now());
   function tickSchedules() {
     const nextSegment = segmentKey(now());

@@ -100,9 +100,10 @@ function statusAt(entries, nowMs) {
   const minutes = kstMinutes(nowMs);
   const active = (entries || []).filter((entry) => {
     if (entry.from > today || entry.to < today) return false;
-    if (entry.kind === 'half-am') return minutes < 720;
-    if (entry.kind === 'half-pm') return minutes >= 720;
-    if (entry.kind === 'lunch') return minutes >= 690 && minutes < 810;
+    // 출근해서 보면 그 사람의 '이따' 상태도 보이도록: 오후반차·외근·재택·출장·연차는 종일,
+    // 오전반차는 14:30 전까지, 따점(점심 약속)은 09:00~13:00 에만 이름표에 표시
+    if (entry.kind === 'half-am') return minutes < 870;
+    if (entry.kind === 'lunch') return minutes >= 540 && minutes < 780;
     return true;
   });
   active.sort((a, b) => STATUS_PRIORITY.indexOf(a.kind) - STATUS_PRIORITY.indexOf(b.kind));

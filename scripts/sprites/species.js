@@ -53,7 +53,7 @@ function rabbit(canvas, pose, frame, colorIndex) {
   const [leftFoot, rightFoot] = pose === 'walk' ? steps[frame] : steps[0];
   rect(canvas, leftFoot, 15, 3, 1, OUTLINE); rect(canvas, rightFoot, 15, 3, 1, OUTLINE);
   eyes(canvas, pose, 6 + crouch + breathe);
-  if (pose === 'talk' && frame % 2) setPx(canvas, 9, 9, EYE);
+  if (pose === 'talk' && frame % 2) setPx(canvas, 9, 8, EYE);
 }
 
 function penguin(canvas, pose, frame, colorIndex) {
@@ -68,9 +68,11 @@ function penguin(canvas, pose, frame, colorIndex) {
   rect(canvas, 5, 11, 6, 2, room);
   eyes(canvas, pose, top + 2);
   if (pose === 'talk' && frame % 2) setPx(canvas, 10, top + 5, room);
-  const steps = [[4, 10], [5, 10], [5, 9], [4, 9]];
+  const steps = [[4, 8], [5, 8], [5, 7], [4, 7]];
   const [leftFoot, rightFoot] = pose === 'walk' ? steps[frame] : steps[0];
-  rect(canvas, leftFoot, 15, 3, 1, OUTLINE); rect(canvas, rightFoot, 15, 3, 1, OUTLINE);
+  rect(canvas, leftFoot, 14, 4, 2, OUTLINE); rect(canvas, rightFoot, 14, 4, 2, OUTLINE);
+  rect(canvas, leftFoot + 1, 14, 2, 1, room); rect(canvas, rightFoot + 1, 14, 2, 1, room);
+  setPx(canvas, 10, top + 4, room);
 }
 
 function drawAnimal(canvas, name, pose, frame, colorIndex) {

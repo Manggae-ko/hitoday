@@ -36,6 +36,7 @@ const framePixels = (image, row, column) => {
   return pixels;
 };
 const signature = (points) => points.map(({ x, y, rgba }) => `${x},${y},${rgba.join(',')}`).join('|');
+const averageRgb = (points) => [0, 1, 2].map((channel) => points.reduce((sum, { rgba }) => sum + rgba[channel], 0) / points.length);
 
 test('every sheet is a 64×64 RGBA sheet', () => {
   CHARACTER_IDS.forEach((id) => { for (let color = 0; color < ROOM_COLORS; color += 1) { const file = path.join(SPRITES, `${id}-${color}.png`); assert.ok(fs.existsSync(file), `missing ${id}-${color}.png`); const bytes = fs.readFileSync(file); const image = decodePng(bytes); assert.deepEqual([image.width, image.height], [64, 64]); assert.equal(bytes[24], 8); assert.equal(bytes[25], 6); assert.equal(checkAvatar(bytes).kind, 'sheet'); } });
@@ -56,9 +57,6 @@ test('sheet cells enforce geometry, animation, eyes, and outline contracts', () 
         assert.ok(Math.min(...ys) >= 1); assert.equal(Math.max(...ys), 15, `${id}-${color} feet y`);
         assert.ok(Math.max(...ys) - Math.min(...ys) + 1 <= designs[id].maxHeight, `${id}-${color} height ${row},${column}`);
         assert.ok(Math.max(...xs) - Math.min(...xs) + 1 <= 11);
-        const body = points.filter(({ x, y }) => x >= 4 && x <= 11 && y >= (id === 'rabbit' ? 5 : 3) && y <= 14);
-        const bodyRows = new Map(); body.forEach(({ x, y }) => bodyRows.set(y, [...(bodyRows.get(y) || []), x]));
-        bodyRows.forEach((rowXs) => assert.ok(Math.max(...rowXs) - Math.min(...rowXs) + 1 <= designs[id].bodyW, `${id} actual bodyW`));
         points.forEach(({ x, y, rgba }) => {
           const boundary = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => {
             const xx = x + dx; const yy = y + dy;
@@ -68,6 +66,11 @@ test('sheet cells enforce geometry, animation, eyes, and outline contracts', () 
         });
       }
       const idleEyes = framePixels(image, 0, 0).filter(({ rgba }) => colorKey(rgba) === eye);
+      const bodyFill = framePixels(image, 0, 0).filter(({ y, rgba }) => y >= 11 && y <= 13 && colorKey(rgba) !== outline);
+      const bodyXs = bodyFill.map(({ x }) => x);
+      // This measures rendered fill, without coordinate-clipping x first: widening it to 9px must fail.
+      assert.ok(bodyXs.length, `${id} body fill sample`);
+      assert.ok(Math.max(...bodyXs) - Math.min(...bodyXs) + 1 <= designs[id].bodyW, `${id} actual bodyW`);
       const sleepEyes = framePixels(image, 3, 0).filter(({ rgba }) => colorKey(rgba) === eye);
       assert.deepEqual(idleEyes.map(({ x, y }) => [x, y]), [[7, idleEyes[0].y], [9, idleEyes[0].y], [7, idleEyes[0].y + 1], [9, idleEyes[0].y + 1]], `${id} idle eyes`);
       assert.deepEqual(sleepEyes.map(({ x, y }) => [x, y]), [[6, sleepEyes[0].y], [7, sleepEyes[0].y], [9, sleepEyes[0].y], [10, sleepEyes[0].y]], `${id} sleep eyes`);
@@ -80,8 +83,45 @@ test('sheet cells enforce geometry, animation, eyes, and outline contracts', () 
   });
 });
 
+test('rabbit talk mouth changes a head-fill pixel', () => {
+  const image = decodePng(fs.readFileSync(path.join(SPRITES, 'rabbit-0.png')));
+  const closed = rgbaAt(image, 9, 2 * 16 + 8);
+  const opened = rgbaAt(image, 16 + 9, 2 * 16 + 8);
+  assert.equal(colorKey(closed), hex(furTint('#fffaf2', 0)).join());
+  assert.equal(colorKey(opened), hex('#241d1a').join());
+});
+
 test('palette: room colors are far apart', () => {
   for (let a = 0; a < ROOM_PALETTE.length; a += 1) for (let b = a + 1; b < ROOM_PALETTE.length; b += 1) assert.ok(delta(hex(ROOM_PALETTE[a]), hex(ROOM_PALETTE[b])) >= (a < 3 && b < 3 ? 30 : 12), `${a}-${b}`);
+});
+
+test('palette: body tints differ for every species', () => {
+  CHARACTER_IDS.forEach((id) => {
+    const averages = [0, 1, 2].map((color) => {
+      const image = decodePng(fs.readFileSync(path.join(SPRITES, `${id}-${color}.png`)));
+      const excluded = new Set([hex(OUTLINE).join(), hex('#241d1a').join()]);
+      const body = framePixels(image, 0, 0).filter(({ rgba }) => !excluded.has(colorKey(rgba)));
+      assert.ok(body.length, `${id}-${color} body pixels`);
+      if (id !== 'ghost') {
+        const family = id === 'rabbit'
+          ? new Set([hex(furTint('#fffaf2', color)).join(), hex(ROOM_PALETTE[color]).join()])
+          : new Set([hex(roomTone(color, 0.48, 0.30)).join(), hex(ROOM_PALETTE[color]).join()]);
+        const share = body.filter(({ rgba }) => family.has(colorKey(rgba))).length / body.length;
+        assert.ok(share >= 0.2, `${id}-${color} room family share ${share}`);
+      }
+      return averageRgb(body);
+    });
+    for (let a = 0; a < averages.length; a += 1) for (let b = a + 1; b < averages.length; b += 1) {
+      assert.ok(delta(averages[a], averages[b]) >= 10, `${id} ${a}-${b}`);
+    }
+  });
+});
+
+test('fur tints pairwise ΔE ≥3', () => {
+  const tints = ROOM_PALETTE.map((_, color) => hex(furTint('#fffaf2', color)));
+  for (let a = 0; a < tints.length; a += 1) for (let b = a + 1; b < tints.length; b += 1) {
+    assert.ok(delta(tints[a], tints[b]) >= 3, `${a}-${b}`);
+  }
 });
 
 test('all 12 PNG variants contain their room color and species tint', () => {

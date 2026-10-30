@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time setup for a fresh Ubuntu 22.04/24.04 server (e.g. Naver Cloud Micro).
+# One-time setup for a fresh Ubuntu 22.04/24.04 server (for example Oracle Cloud Ampere A1).
 # Installs Docker + Compose + git, and adds 1GB of swap so builds don't run out of memory.
 # Usage (as root):  bash setup-server.sh
 set -euo pipefail

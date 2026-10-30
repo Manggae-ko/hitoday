@@ -38,7 +38,7 @@ function connect(i, counters) {
 
 async function main() {
   const server = spawn(process.execPath, [path.join(__dirname, '..', 'server', 'relay.js')], {
-    env: { ...process.env, PORT: String(PORT), DATA_DIR: path.join(require('node:os').tmpdir(), `jakdang-load-${Date.now()}`) },
+    env: { ...process.env, PORT: String(PORT), DATA_DIR: path.join(require('node:os').tmpdir(), `hitoday-load-${Date.now()}`) },
     stdio: ['ignore', 'pipe', 'inherit'],
   });
   await new Promise((resolve) => server.stdout.on('data', (d) => String(d).includes('listening') && resolve()));

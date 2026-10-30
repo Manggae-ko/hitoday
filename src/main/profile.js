@@ -9,9 +9,9 @@ const {
 const { isCharacter, DEFAULT_CHARACTER } = require('../../shared/characters');
 
 const FILE_NAME = 'profile.json';
-// Installers ship with the server from package.json ("jakdang.server"), so users never type it.
-const PACKAGED_SERVER = (require('../../package.json').jakdang || {}).server;
-const DEFAULT_SERVER = process.env.JAKDANG_SERVER || PACKAGED_SERVER || 'ws://localhost:8787';
+// Installers ship with the server from package.json ("hitoday.server"), so users never type it.
+const PACKAGED_SERVER = (require('../../package.json').hitoday || {}).server;
+const DEFAULT_SERVER = process.env.HITODAY_SERVER || PACKAGED_SERVER || 'ws://localhost:8787';
 
 // A distinct default name, so two new users never both show up as the same name.
 const defaultName = (code) => `말랑${code.slice(0, 2)}`;

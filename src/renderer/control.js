@@ -1,7 +1,7 @@
 // Settings window: two tabs (방 / 내 캐릭터). Everything shown comes from the main
 // process state; user text always goes in through textContent.
 
-const api = window.jakdang;
+const api = window.hitoday;
 const $ = (id) => document.getElementById(id);
 
 const MAX_AVATAR_BYTES = 32 * 1024;
@@ -57,7 +57,7 @@ function node(tag, className, text) {
   return n;
 }
 
-const sheetFor = (character, color) => `sprites/${character || 'mochi'}-${color || 0}.png`;
+const sheetFor = (character, color) => `sprites/${character || 'ghost'}-${color || 0}.png`;
 
 /** A sprite thumbnail: the member's uploaded image, or their built-in character sheet. */
 function sprite({ look, character, color }, className = '') {
@@ -127,7 +127,7 @@ function renderChat(chat, membersByCode) {
     const li = node('li', line.mine ? 'chat-line mine' : 'chat-line');
     const body = node('div', 'body');
     body.append(node('span', 'who', line.name), node('span', 'text', line.message));
-    if (!line.mine) li.append(sprite(membersByCode[line.from] || { character: 'mochi', color: 0 }));
+    if (!line.mine) li.append(sprite(membersByCode[line.from] || { character: 'ghost', color: 0 }));
     li.append(body);
     return li;
   }));

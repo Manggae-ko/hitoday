@@ -37,7 +37,7 @@ test('the first device claims a code; another key for it is refused', async () =
 });
 
 test('claims survive a server restart, and only hashes are written to disk', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'jakdang-keys-'));
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hitoday-keys-'));
   const first = createRelay({ port: 0, dataDir });
   await first.ready;
   assert.equal(await helloOnce(first.port(), 'BBBBBB', keyFor('BBBBBB')), 'welcome');
@@ -57,7 +57,7 @@ test('claims survive a server restart, and only hashes are written to disk', asy
 });
 
 test('a corrupted key file is ignored instead of crashing the server', () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jakdang-keys-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hitoday-keys-'));
   const file = path.join(dir, 'device-keys.json');
   fs.writeFileSync(file, '{not json');
   const keys = createDeviceKeys({ file });

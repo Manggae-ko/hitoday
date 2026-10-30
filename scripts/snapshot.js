@@ -16,12 +16,12 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const ME = 'K7QX2M';
 
-// A tiny 32×32 "uploaded" character: a pixel cat face, to show custom images.
-const customCat = encodePng(32, 32, (x, y) => {
-  const inHead = (x - 15.5) ** 2 / 144 + (y - 19) ** 2 / 100 <= 1;
-  const inEar = (y >= 5 && y <= 11) && (Math.abs(x - 7) <= (y - 5) / 1.5 || Math.abs(x - 24) <= (y - 5) / 1.5);
-  const eye = (y === 18 || y === 19) && (x === 11 || x === 20);
-  const nose = y === 22 && (x === 15 || x === 16);
+// A tiny 16×16 "uploaded" character: a pixel cat face, to show custom images.
+const customCat = encodePng(16, 16, (x, y) => {
+  const inHead = (x - 7.5) ** 2 / 36 + (y - 9.5) ** 2 / 25 <= 1;
+  const inEar = (y >= 2 && y <= 5) && (Math.abs(x - 3) <= (y - 2) / 1.5 || Math.abs(x - 12) <= (y - 2) / 1.5);
+  const eye = y === 9 && (x === 5 || x === 10);
+  const nose = y === 11 && (x === 7 || x === 8);
   if (eye || nose) return [43, 36, 32, 255];
   if (inHead || inEar) return [250, 176, 90, 255];
   return [0, 0, 0, 0];

@@ -1,5 +1,6 @@
 // Messages exchanged between apps and the relay server.
 // Shared by both sides so validation rules never drift apart.
+// KST = UTC+9 고정, DST 없음.
 //
 // A "room" works like a group chat: whoever has the invite code can join,
 // and everyone in the room sees everyone's character along the bottom of their screen.
@@ -13,6 +14,23 @@ const MAX_NAME_LENGTH = 12;
 const MAX_MESSAGE_LENGTH = 80;
 const MAX_ROOM_MEMBERS = 12;
 const ROOM_HISTORY = 30;
+const STATUS_KINDS = ['leave', 'half-am', 'half-pm', 'out', 'remote', 'trip', 'lunch', 'note'];
+const STATUS_LABELS = {
+  leave: '연차',
+  'half-am': '오전반차',
+  'half-pm': '오후반차',
+  out: '외근',
+  remote: '재택',
+  trip: '출장',
+  lunch: '따점',
+  note: '메모',
+};
+const STATUS_PRIORITY = ['leave', 'trip', 'half-am', 'half-pm', 'out', 'remote', 'lunch', 'note'];
+const MAX_SCHEDULE_ENTRIES = 30;
+const MAX_NOTE_LENGTH = 12;
+const SCHEDULE_WINDOW_DAYS = 60;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function isCode(value) {
   return typeof value === 'string' && CODE_PATTERN.test(value);
@@ -46,6 +64,51 @@ function spotOrNull(value) {
 
 const fail = (error) => ({ ok: false, error });
 const pass = (value) => ({ ok: true, value });
+
+const kstDate = (ms) => new Date(ms + KST_OFFSET_MS).toISOString().slice(0, 10);
+const kstMinutes = (ms) => Math.floor(((ms + KST_OFFSET_MS) % DAY_MS) / 60_000);
+
+function dateValue(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  const ms = Date.UTC(year, month - 1, day);
+  const date = new Date(ms);
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? ms : null;
+}
+
+function parseScheduleEntries(value) {
+  if (!Array.isArray(value) || value.length > MAX_SCHEDULE_ENTRIES) return fail('bad-schedule');
+  const entries = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || !STATUS_KINDS.includes(item.kind)) return fail('bad-schedule');
+    const from = dateValue(item.from);
+    const to = dateValue(item.to);
+    if (from === null || to === null || from > to || to - from >= SCHEDULE_WINDOW_DAYS * DAY_MS) {
+      return fail('bad-schedule');
+    }
+    const note = cleanText(item.note, Number.POSITIVE_INFINITY);
+    if (note && Array.from(note).length > MAX_NOTE_LENGTH) return fail('bad-schedule');
+    if (item.kind === 'note' && !note) return fail('bad-schedule');
+    entries.push({ from: item.from, to: item.to, kind: item.kind, ...(note ? { note } : {}) });
+  }
+  entries.sort((a, b) => a.from.localeCompare(b.from));
+  return pass(entries);
+}
+
+function statusAt(entries, nowMs) {
+  const today = kstDate(nowMs);
+  const minutes = kstMinutes(nowMs);
+  const active = (entries || []).filter((entry) => {
+    if (entry.from > today || entry.to < today) return false;
+    if (entry.kind === 'half-am') return minutes < 720;
+    if (entry.kind === 'half-pm') return minutes >= 720;
+    if (entry.kind === 'lunch') return minutes >= 690 && minutes < 810;
+    return true;
+  });
+  active.sort((a, b) => STATUS_PRIORITY.indexOf(a.kind) - STATUS_PRIORITY.indexOf(b.kind));
+  const entry = active[0];
+  return entry ? { kind: entry.kind, label: entry.kind === 'note' ? entry.note : STATUS_LABELS[entry.kind] } : null;
+}
 
 // A device key: 32 random bytes, base64url (43 characters). Generated once per install.
 const KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -106,10 +169,16 @@ function parsePresence(data) {
   return typeof data.away === 'boolean' ? pass({ type: 'presence', away: data.away }) : fail('bad-presence');
 }
 
+function parseSetSchedule(data) {
+  const parsed = parseScheduleEntries(data.entries);
+  return parsed.ok ? pass({ type: 'set-schedule', entries: parsed.value }) : parsed;
+}
+
 const PARSERS = {
   hello: parseHello,
   move: parseMove,
   presence: parsePresence,
+  'set-schedule': parseSetSchedule,
   'set-avatar': parseSetAvatar,
   'create-room': () => pass({ type: 'create-room' }),
   'join-room': parseJoin,
@@ -136,6 +205,12 @@ module.exports = {
   MAX_MESSAGE_LENGTH,
   MAX_ROOM_MEMBERS,
   ROOM_HISTORY,
+  STATUS_KINDS,
+  STATUS_LABELS,
+  STATUS_PRIORITY,
+  MAX_SCHEDULE_ENTRIES,
+  MAX_NOTE_LENGTH,
+  SCHEDULE_WINDOW_DAYS,
   GAMES,
   RPS_HANDS,
   isCode,
@@ -144,5 +219,9 @@ module.exports = {
   normalizeCode,
   spotOrNull,
   isDeviceKey,
+  kstDate,
+  kstMinutes,
+  parseScheduleEntries,
+  statusAt,
   parseClientMessage,
 };

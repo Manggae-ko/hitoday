@@ -16,12 +16,13 @@ sudo netfilter-persistent save
 
 ## 2. 서버 준비
 
-저장소를 `~/hitoday`에 clone한 뒤 준비 스크립트를 검토하고 실행합니다. Docker의 `node:22-alpine` 이미지는 ARM64를 지원하므로 A1에서 그대로 빌드됩니다.
+SSH 접속 직후 `sudo -i`로 root 셸에 들어갑니다. 이후 이 문서의 clone, 서버 준비, Docker 실행, 자동 업데이트 명령은 모두 root 셸에서 실행합니다. `setup-server.sh`는 일반 사용자를 Docker 그룹에 추가하지 않으므로 실행 계정을 섞으면 Docker 소켓 권한과 저장소 소유권 문제가 생길 수 있습니다. 저장소는 `/root/hitoday`에 clone합니다. Docker의 `node:22-alpine` 이미지는 ARM64를 지원하므로 A1에서 그대로 빌드됩니다.
 
 ```bash
-git clone https://github.com/Manggae-ko/hitoday.git ~/hitoday
-cd ~/hitoday
-sudo bash deploy/setup-server.sh
+sudo -i
+git clone https://github.com/Manggae-ko/hitoday.git /root/hitoday
+cd /root/hitoday
+bash deploy/setup-server.sh
 ```
 
 ## 3. DuckDNS와 Caddy
@@ -39,7 +40,7 @@ Caddy는 `deploy/Caddyfile`에 따라 80·443에서 인증서를 자동 발급�
 ## 4. 환경 설정과 실행
 
 ```bash
-cd ~/hitoday/deploy
+cd /root/hitoday/deploy
 cp .env.example .env
 chmod 600 .env
 ```
@@ -59,14 +60,26 @@ GitHub Actions Variables에 다음 값을 설정합니다.
 ## 5. 자동 업데이트
 
 ```bash
-sudo bash ~/hitoday/deploy/install-auto-update.sh
-sudo tail -f /var/log/hitoday-update.log
+bash /root/hitoday/deploy/install-auto-update.sh
+tail -f /var/log/hitoday-update.log
 ```
 
 cron은 2분마다 `deploy/auto-update.sh`를 실행하고 새 커밋이 있으면 Docker 이미지를 다시 빌드합니다.
 
 ## 6. 백업과 복구
 
-Docker의 relay 데이터 볼륨에 있는 `DATA_DIR`를 정기적으로 암호화 백업합니다. 백업 대상은 `device-keys.json`, `rooms.json`, `stats.json`, `schedules.json`입니다. 복구 시 컨테이너를 멈추고 같은 데이터 볼륨에 파일을 되돌린 뒤 다시 시작합니다.
+Docker의 relay 데이터 볼륨에 있는 `DATA_DIR`를 정기적으로 암호화 백업합니다. 백업 대상은 `device-keys.json`, `rooms.json`, `stats.json`, `schedules.json`입니다. `/root/hitoday/deploy`에서 다음 명령으로 백업 파일을 만든 뒤 별도 저장소에서 암호화해 보관합니다.
+
+```bash
+docker run --rm -v deploy_relay-data:/data -v "$PWD":/backup alpine tar czf /backup/hitoday-data-$(date +%F).tgz -C /data .
+```
+
+복구할 때는 컨테이너를 멈추고 백업 파일명을 실제 파일에 맞춘 뒤 같은 데이터 볼륨에 압축을 풉니다.
+
+```bash
+docker compose down
+docker run --rm -v deploy_relay-data:/data -v "$PWD":/backup alpine sh -c 'rm -rf /data/* && tar xzf /backup/hitoday-data-YYYY-MM-DD.tgz -C /data'
+docker compose up -d
+```
 
 Oracle은 장기간 낮은 사용률의 Always Free 인스턴스를 유휴 상태로 판단해 회수할 수 있습니다. 정책과 알림을 확인하고, 재생성에 대비해 저장 데이터와 `deploy/.env`를 별도로 백업하세요.

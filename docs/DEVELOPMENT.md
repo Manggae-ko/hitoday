@@ -34,6 +34,7 @@ npm start
 | `PORT` | 서버 포트, 기본 8787 |
 | `DATA_DIR` | 서버 영속 데이터 디렉터리 |
 | `GITHUB_REPO` | 다운로드할 Release 저장소(`owner/name`) |
+| `GIT_COMMIT` | 서버 `/version`에 표시할 커밋 해시(`auto-update.sh`가 주입) |
 | `GA_MEASUREMENT_ID` | 선택적 Google Analytics 측정 ID |
 | `STATS_TOKEN` | `/stats` 접근 토큰(16자 이상) |
 | `NOTIFY_WEBHOOK_URL` | 선택적 운영 알림 Webhook URL |

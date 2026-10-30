@@ -122,7 +122,7 @@ test('species accents are present: ghost blush, rabbit pink ear and nose, pengui
 });
 
 test('app and tray icons have the required IHDR sizes', () => {
-  const outputs = [['build/icon.png', 1024], ['assets/tray.png', 16], ['assets/tray@2x.png', 32], ['assets/trayTemplate.png', 22], ['assets/trayTemplate@2x.png', 44]];
+  const outputs = [['build/icon.png', 1024], ['assets/tray.png', 16], ['assets/tray@2x.png', 32], ['assets/trayTemplate.png', 18], ['assets/trayTemplate@2x.png', 36]];
   outputs.forEach(([file, size]) => {
     const image = decodePng(fs.readFileSync(path.join(ROOT, file)));
     assert.deepEqual([image.width, image.height], [size, size], file);

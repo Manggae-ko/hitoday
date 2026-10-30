@@ -10,7 +10,7 @@ Releases에서 `HIToday-Setup.exe`를 내려받아 실행해요. 코드 서명 �
 
 ## 개발
 
-Node.js 22 이상에서 `npm install`, `npm test`, `npm start`를 실행해요. 환경변수와 서버 배포 방법은 [개발 가이드](docs/DEVELOPMENT.md)와 [Oracle Cloud 배포 런북](docs/DEPLOY_ORACLE.md)을 참고하세요.
+Node.js 22 이상에서 `npm install`, `npm test`, `npm start`를 실행해요. 환경변수와 서버 배포 방법은 [개발 가이드](docs/DEVELOPMENT.md)와 [네이버클라우드 배포 런북](docs/DEPLOY_NCLOUD.md)을 참고하세요.
 
 ## 라이선스
 

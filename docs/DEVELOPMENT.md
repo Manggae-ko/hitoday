@@ -41,7 +41,7 @@ npm start
 
 `DATA_DIR`에는 `device-keys.json`, `rooms.json`, `stats.json`, `schedules.json`이 저장됩니다. 실제 비밀값과 토큰은 커밋하지 말고 `deploy/.env`에만 둡니다.
 
-GitHub Actions Variables에는 `HITODAY_SERVER=wss://<your-subdomain>.duckdns.org`와 `HITODAY_DOMAIN=<your-subdomain>.duckdns.org`를 설정합니다. 배포 절차는 [Oracle Cloud 배포 런북](DEPLOY_ORACLE.md)을 참고하세요.
+GitHub Actions Variables에는 `HITODAY_SERVER=wss://<your-subdomain>.duckdns.org`와 `HITODAY_DOMAIN=<your-subdomain>.duckdns.org`를 설정합니다. 배포 절차는 [네이버클라우드 배포 런북](DEPLOY_NCLOUD.md)을 참고하세요.
 
 ## 알려진 한계
 

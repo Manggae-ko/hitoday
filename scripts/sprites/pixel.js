@@ -23,33 +23,6 @@ function rect(canvas, x, y, width, height, color) {
   for (let yy = y; yy < y + height; yy += 1) for (let xx = x; xx < x + width; xx += 1) setPx(canvas, xx, yy, color);
 }
 
-function furTint(_baseHex, roomIndex) {
-  const [r, g, b] = hexToRgb(ROOM_PALETTE[roomIndex]).map((v) => v / 255);
-  const max = Math.max(r, g, b); const min = Math.min(r, g, b); const range = max - min;
-  let hue = 0;
-  if (range && max === r) hue = ((g - b) / range + (g < b ? 6 : 0)) / 6;
-  else if (range && max === g) hue = ((b - r) / range + 2) / 6;
-  else if (range) hue = ((r - g) / range + 4) / 6;
-  const saturation = range ? [0.25, 0.30, 0.35][roomIndex % 3] : 0;
-  const lightness = [0.78, 0.82, 0.85, 0.80][Math.floor(roomIndex / 3)];
-  const q = lightness < 0.5 ? lightness * (1 + saturation) : lightness + saturation - lightness * saturation;
-  const p = 2 * lightness - q;
-  const channel = (t) => { const value = (t + 1) % 1; if (value < 1 / 6) return p + (q - p) * 6 * value; if (value < 1 / 2) return q; if (value < 2 / 3) return p + (q - p) * (2 / 3 - value) * 6; return p; };
-  return toHex([channel(hue + 1 / 3), channel(hue), channel(hue - 1 / 3)].map((v) => v * 255));
-}
 
-function roomTone(roomIndex, saturation, lightness) {
-  const [r, g, b] = hexToRgb(ROOM_PALETTE[roomIndex]).map((v) => v / 255);
-  const max = Math.max(r, g, b); const min = Math.min(r, g, b); const range = max - min;
-  let hue = 0;
-  if (range && max === r) hue = ((g - b) / range + (g < b ? 6 : 0)) / 6;
-  else if (range && max === g) hue = ((b - r) / range + 2) / 6;
-  else if (range) hue = ((r - g) / range + 4) / 6;
-  const sat = range ? saturation : 0;
-  const q = lightness < 0.5 ? lightness * (1 + sat) : lightness + sat - lightness * sat;
-  const p = 2 * lightness - q;
-  const channel = (t) => { const value = (t + 1) % 1; if (value < 1 / 6) return p + (q - p) * 6 * value; if (value < 1 / 2) return q; if (value < 2 / 3) return p + (q - p) * (2 / 3 - value) * 6; return p; };
-  return toHex([channel(hue + 1 / 3), channel(hue), channel(hue - 1 / 3)].map((v) => v * 255));
-}
 
-module.exports = { ROOM_PALETTE, createCanvas, setPx, rect, hexToRgb, furTint, roomTone };
+module.exports = { ROOM_PALETTE, createCanvas, setPx, rect, hexToRgb };

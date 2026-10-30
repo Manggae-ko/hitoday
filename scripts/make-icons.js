@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { encodePng } = require('./png');
 const { drawFrame } = require('./sprites/draw');
-const { ROOM_PALETTE, createCanvas, setPx } = require('./sprites/pixel');
+const { ROOM_PALETTE, createCanvas, setPx, hexToRgb } = require('./sprites/pixel');
 
 const root = path.join(__dirname, '..');
 const bytes = (canvas) => encodePng(canvas.width, canvas.height, (x, y) => Array.from(canvas.data.slice((y * canvas.width + x) * 4, (y * canvas.width + x) * 4 + 4)));
@@ -39,12 +39,20 @@ for (const [x, y] of points) {
 }
 fs.writeFileSync(path.join(root, 'build/icon.png'), bytes(scale(icon, 1024, 1024, 64, ROOM_PALETTE[0])));
 
-const trayArt = createCanvas(11, 11);
-for (let y = 0; y < 11; y += 1) for (let x = 0; x < 11; x += 1) {
-  const offset = ((y + 4) * 16 + x + 3) * 4;
-  if (ghost.data[offset + 3]) setPx(trayArt, x, y, Array.from(ghost.data.slice(offset, offset + 4)));
+// 메뉴바·트레이: 전용 라인 아트 글리프(16×16). 맥 템플릿은 18×18(1px 여백)·36×36, 윈도우 컬러는 16·32.
+const { TRAY_GLYPH, EYE, BASE, OUTLINE } = require('./sprites/designs');
+function trayCanvas(template, factor, padding) {
+  const size = (16 + padding * 2) * factor;
+  const canvas = createCanvas(size, size);
+  TRAY_GLYPH.forEach((row, y) => row.split('').forEach((ch, x) => {
+    if (ch === '.') return;
+    if (template && ch === 'W') return; // 템플릿은 안쪽 투명
+    const color = template ? [0, 0, 0, 255] : [...hexToRgb(ch === 'W' ? BASE.W : ch === 'E' ? EYE : OUTLINE), 255];
+    for (let yy = 0; yy < factor; yy += 1) for (let xx = 0; xx < factor; xx += 1) setPx(canvas, (x + padding) * factor + xx, (y + padding) * factor + yy, color);
+  }));
+  return canvas;
 }
-fs.writeFileSync(path.join(root, 'assets/tray.png'), bytes(scale(trayArt, 16, 16, 1)));
-fs.writeFileSync(path.join(root, 'assets/tray@2x.png'), bytes(scale(trayArt, 32, 32, 2)));
-fs.writeFileSync(path.join(root, 'assets/trayTemplate.png'), bytes(scale(trayArt, 22, 22, 2, null, true)));
-fs.writeFileSync(path.join(root, 'assets/trayTemplate@2x.png'), bytes(scale(trayArt, 44, 44, 4, null, true)));
+fs.writeFileSync(path.join(root, 'assets/tray.png'), bytes(trayCanvas(false, 1, 0)));
+fs.writeFileSync(path.join(root, 'assets/tray@2x.png'), bytes(trayCanvas(false, 2, 0)));
+fs.writeFileSync(path.join(root, 'assets/trayTemplate.png'), bytes(trayCanvas(true, 1, 1)));
+fs.writeFileSync(path.join(root, 'assets/trayTemplate@2x.png'), bytes(trayCanvas(true, 2, 1)));

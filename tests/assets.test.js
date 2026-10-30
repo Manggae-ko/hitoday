@@ -6,8 +6,8 @@ const zlib = require('node:zlib');
 const { CHARACTER_IDS } = require('../shared/characters');
 const { ROOM_COLORS } = require('../shared/colors');
 const { checkAvatar } = require('../shared/avatar');
-const { ROOM_PALETTE, furTint, roomTone } = require('../scripts/sprites/pixel');
-const { designs, OUTLINE } = require('../scripts/sprites/species');
+const { ROOM_PALETTE } = require('../scripts/sprites/pixel');
+const { designs, OUTLINE, EYE, BASE } = require('../scripts/sprites/species');
 
 const ROOT = path.join(__dirname, '..');
 const SPRITES = path.join(ROOT, 'src', 'renderer', 'sprites');
@@ -83,68 +83,46 @@ test('sheet cells enforce geometry, animation, eyes, and outline contracts', () 
   });
 });
 
-test('rabbit talk mouth changes a head-fill pixel', () => {
-  const image = decodePng(fs.readFileSync(path.join(SPRITES, 'rabbit-0.png')));
-  const closed = rgbaAt(image, 9, 2 * 16 + 8);
-  const opened = rgbaAt(image, 16 + 9, 2 * 16 + 8);
-  assert.equal(colorKey(closed), hex(furTint('#fffaf2', 0)).join());
-  assert.equal(colorKey(opened), hex('#241d1a').join());
+test('talk frame opens a mouth pixel on every species', () => {
+  CHARACTER_IDS.forEach((id) => {
+    const image = decodePng(fs.readFileSync(path.join(SPRITES, `${id}-0.png`)));
+    const closed = framePixels(image, 2, 0).filter(({ rgba }) => colorKey(rgba) === hex(EYE).join()).length;
+    const opened = framePixels(image, 2, 1).filter(({ rgba }) => colorKey(rgba) === hex(EYE).join()).length;
+    assert.equal(opened, closed + 1, `${id} talk mouth`);
+  });
 });
 
 test('palette: room colors are far apart', () => {
   for (let a = 0; a < ROOM_PALETTE.length; a += 1) for (let b = a + 1; b < ROOM_PALETTE.length; b += 1) assert.ok(delta(hex(ROOM_PALETTE[a]), hex(ROOM_PALETTE[b])) >= (a < 3 && b < 3 ? 30 : 12), `${a}-${b}`);
 });
 
-test('palette: body tints differ for every species', () => {
+test('species keep fixed base colors; only the scarf carries the room color', () => {
+  const base = { ghost: BASE.W, rabbit: BASE.W, penguin: BASE.K };
   CHARACTER_IDS.forEach((id) => {
-    const averages = [0, 1, 2].map((color) => {
+    const reference = framePixels(decodePng(fs.readFileSync(path.join(SPRITES, `${id}-0.png`))), 0, 0);
+    for (let color = 0; color < ROOM_COLORS; color += 1) {
       const image = decodePng(fs.readFileSync(path.join(SPRITES, `${id}-${color}.png`)));
-      const excluded = new Set([hex(OUTLINE).join(), hex('#241d1a').join()]);
-      const body = framePixels(image, 0, 0).filter(({ rgba }) => !excluded.has(colorKey(rgba)));
-      assert.ok(body.length, `${id}-${color} body pixels`);
-      if (id !== 'ghost') {
-        const family = id === 'rabbit'
-          ? new Set([hex(furTint('#fffaf2', color)).join(), hex(ROOM_PALETTE[color]).join()])
-          : new Set([hex(roomTone(color, 0.48, 0.30)).join(), hex(ROOM_PALETTE[color]).join()]);
-        const share = body.filter(({ rgba }) => family.has(colorKey(rgba))).length / body.length;
-        assert.ok(share >= 0.2, `${id}-${color} room family share ${share}`);
-      }
-      return averageRgb(body);
-    });
-    for (let a = 0; a < averages.length; a += 1) for (let b = a + 1; b < averages.length; b += 1) {
-      assert.ok(delta(averages[a], averages[b]) >= 10, `${id} ${a}-${b}`);
+      const points = framePixels(image, 0, 0);
+      const room = hex(ROOM_PALETTE[color]).join();
+      const scarf = points.filter(({ rgba }) => colorKey(rgba) === room);
+      assert.ok(scarf.length >= 4 && scarf.length <= 8, `${id}-${color} scarf pixels ${scarf.length}`);
+      const body = points.filter(({ rgba }) => ![hex(OUTLINE).join(), hex(EYE).join(), room].includes(colorKey(rgba)));
+      const baseShare = body.filter(({ rgba }) => colorKey(rgba) === hex(base[id]).join()).length / body.length;
+      assert.ok(baseShare >= (id === 'penguin' ? 0.4 : 0.5), `${id}-${color} base color share ${baseShare}`); // 펭귄은 흰 얼굴·배가 커서 검정 비율이 낮음
+      // 방 색 외에는 12색 모두 같은 그림
+      const strip = (list) => list.filter(({ rgba }) => colorKey(rgba) !== room && !ROOM_PALETTE.some((h) => hex(h).join() === colorKey(rgba)));
+      assert.equal(signature(strip(points)), signature(strip(reference)), `${id}-${color} differs beyond scarf`);
     }
   });
 });
 
-test('fur tints pairwise ΔE ≥3', () => {
-  const tints = ROOM_PALETTE.map((_, color) => hex(furTint('#fffaf2', color)));
-  for (let a = 0; a < tints.length; a += 1) for (let b = a + 1; b < tints.length; b += 1) {
-    assert.ok(delta(tints[a], tints[b]) >= 3, `${a}-${b}`);
-  }
-});
-
-test('all 12 PNG variants contain their room color and species tint', () => {
-  CHARACTER_IDS.forEach((id) => { for (let color = 0; color < ROOM_COLORS; color += 1) {
-    const image = decodePng(fs.readFileSync(path.join(SPRITES, `${id}-${color}.png`)));
-    const colors = new Set(); for (let y = 0; y < image.height; y += 1) for (let x = 0; x < image.width; x += 1) colors.add(colorKey(rgbaAt(image, x, y)));
-    assert.ok(colors.has(hex(ROOM_PALETTE[color]).join()), `${id}-${color} room color`);
-    const tint = id === 'penguin' ? roomTone(color, 0.48, 0.30) : furTint('#fffaf2', color);
-    assert.ok(colors.has(hex(tint).join()), `${id}-${color} tint`);
-  } });
-});
-
-test('penguin back uses room hue at fixed L 0.30', () => {
-  for (let color = 0; color < ROOM_COLORS; color += 1) {
-    const [r, g, b] = hex(roomTone(color, 0.48, 0.30)).map((v) => v / 255);
-    const max = Math.max(r, g, b); const min = Math.min(r, g, b);
-    const lightness = (max + min) / 2;
-    assert.ok(lightness >= 0.25 && lightness <= 0.35, `${color} L=${lightness}`);
-  }
+test('species accents are present: ghost blush, rabbit pink ear and nose, penguin orange beak and feet', () => {
+  const has = (id, hexColor, min) => { const image = decodePng(fs.readFileSync(path.join(SPRITES, `${id}-0.png`))); return framePixels(image, 0, 0).filter(({ rgba }) => colorKey(rgba) === hex(hexColor).join()).length >= min; };
+  assert.ok(has('ghost', BASE.B, 2)); assert.ok(has('rabbit', BASE.P, 4)); assert.ok(has('penguin', BASE.O, 4)); assert.ok(has('penguin', BASE.W, 10));
 });
 
 test('app and tray icons have the required IHDR sizes', () => {
-  const outputs = [['build/icon.png', 1024], ['assets/tray.png', 16], ['assets/tray@2x.png', 32], ['assets/trayTemplate.png', 22], ['assets/trayTemplate@2x.png', 44]];
+  const outputs = [['build/icon.png', 1024], ['assets/tray.png', 16], ['assets/tray@2x.png', 32], ['assets/trayTemplate.png', 18], ['assets/trayTemplate@2x.png', 36]];
   outputs.forEach(([file, size]) => {
     const image = decodePng(fs.readFileSync(path.join(ROOT, file)));
     assert.deepEqual([image.width, image.height], [size, size], file);

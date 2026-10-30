@@ -549,3 +549,114 @@ test('schedule: boundary rebroadcast', async () => {
     await relay.close();
   }
 });
+
+test('schedule: far future entry survives replace outside the editor window', () => {
+  let clock = Date.UTC(2026, 9, 30, 3);
+  return withRelay(async (port) => {
+    const a = await hello(port, 'AAAAAA', '에이', 'SCH008');
+    await a.next('room');
+    const future = scheduleEntry('trip', '2027-02-27');
+    a.say({ type: 'set-schedule', entries: [future] });
+    await a.next('schedule-saved');
+    await a.next('room', (value) => value.members[0].schedule.some((entry) => entry.from === future.from));
+    clock += 2_000;
+    const replacement = scheduleEntry('remote', '2026-10-31');
+    a.say({ type: 'set-schedule', entries: [future, replacement] });
+    await a.next('schedule-saved');
+    const room = await a.next('room', (value) => value.members[0].schedule.length === 2);
+    assert.deepEqual(room.members[0].schedule, [replacement, future]);
+    a.ws.close();
+  }, { now: () => clock });
+});
+
+test('schedule: schedule list excludes past entries', () =>
+  withRelay(async (port) => {
+    const a = await hello(port, 'AAAAAA', '에이', 'SCH009');
+    await a.next('room');
+    const current = scheduleEntry('out', '2026-10-30');
+    a.say({ type: 'set-schedule', entries: [scheduleEntry('leave', '2026-10-29'), current] });
+    await a.next('schedule-saved');
+    const room = await a.next('room', (value) => value.members[0].schedule.length === 1);
+    assert.deepEqual(room.members[0].schedule, [current]);
+    a.ws.close();
+  }, { now: () => Date.UTC(2026, 9, 30, 3) }));
+
+test('schedule: only own requires hello before valid entries', () =>
+  withRelay(async (port) => {
+    const raw = connect(port);
+    await raw.opened;
+    raw.say({ type: 'set-schedule', entries: [scheduleEntry('leave')] });
+    assert.equal((await raw.next('error')).reason, 'say-hello-first');
+    raw.ws.close();
+  }));
+
+test('schedule: rejects bad entries for every contract violation', () =>
+  withRelay(async (port) => {
+    const base = scheduleEntry('leave');
+    const badEntries = [
+      Array(31).fill(base),
+      [{ ...base, kind: 'holiday' }],
+      [{ ...base, kind: 'note', note: '가'.repeat(13) }],
+      [{ ...base, from: '2026-10-31', to: '2026-10-30' }],
+      [{ ...base, from: '2026-02-30', to: '2026-02-30' }],
+    ];
+    const raw = connect(port);
+    await raw.opened;
+    for (const entries of badEntries) {
+      raw.say({ type: 'set-schedule', entries });
+      assert.equal((await raw.next('error')).reason, 'bad-schedule');
+    }
+    raw.ws.close();
+  }));
+
+test('schedule: boundary rebroadcast covers every KST segment once', async () => {
+  const transitions = [
+    [Date.UTC(2026, 9, 29, 14, 59), Date.UTC(2026, 9, 29, 15, 1)],
+    [Date.UTC(2026, 9, 30, 2, 29), Date.UTC(2026, 9, 30, 2, 31)],
+    [Date.UTC(2026, 9, 30, 2, 59), Date.UTC(2026, 9, 30, 3, 1)],
+    [Date.UTC(2026, 9, 30, 4, 29), Date.UTC(2026, 9, 30, 4, 31)],
+  ];
+  for (let index = 0; index < transitions.length; index += 1) {
+    let clock = transitions[index][0];
+    const relay = createRelay({ port: 0, now: () => clock });
+    await relay.ready;
+    try {
+      const a = await hello(relay.port(), 'AAAAAA', '에이', `BDY00${index}`);
+      await a.next('room');
+      clock = transitions[index][1];
+      assert.equal(relay.tickSchedules(), true);
+      await a.next('room');
+      assert.equal(relay.tickSchedules(), false);
+      const repeated = await Promise.race([
+        a.next('room').then(() => true),
+        new Promise((resolve) => setTimeout(() => resolve(false), 50)),
+      ]);
+      assert.equal(repeated, false);
+      a.ws.close();
+    } finally {
+      await relay.close();
+    }
+  }
+});
+
+test('schedule: close completes when schedule flush throws', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hitoday-relay-'));
+  const lines = [];
+  const relay = createRelay({ port: 0, dataDir, log: (line) => lines.push(line) });
+  await relay.ready;
+  const a = await hello(relay.port(), 'AAAAAA', '에이', 'SCH010');
+  await a.next('room');
+  a.say({ type: 'set-schedule', entries: [scheduleEntry('leave')] });
+  await a.next('schedule-saved');
+  const renameSync = fs.renameSync;
+  fs.renameSync = (...args) => {
+    if (String(args[0]).endsWith('schedules.json.tmp')) throw new Error('schedule disk failure');
+    return renameSync(...args);
+  };
+  try {
+    await relay.close();
+  } finally {
+    fs.renameSync = renameSync;
+  }
+  assert.ok(lines.some((line) => /schedules not flushed while closing/.test(line)));
+});

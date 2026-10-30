@@ -136,3 +136,10 @@ test('statusAt uses priority and keeps the first same-kind entry', () => {
   assert.deepEqual(statusAt(entries.slice(0, 2), noon), { kind: 'note', label: '첫 메모' });
   assert.equal(statusAt(entries, Date.UTC(2026, 9, 31, 3, 0)), null);
 });
+
+test('parseScheduleEntries accepts a 59-day range and leap day', () => {
+  assert.equal(parseScheduleEntries([
+    { from: '2026-01-01', to: '2026-03-01', kind: 'leave' },
+    { from: '2028-02-29', to: '2028-02-29', kind: 'remote' },
+  ]).ok, true);
+});

@@ -3,17 +3,28 @@ const path = require('node:path');
 const { parseScheduleEntries, kstDate } = require('../shared/protocol');
 
 const SAVE_DELAY_MS = 5_000;
+const CODE_PATTERN = /^[A-Z0-9]{6}$/;
+
+const copyEntries = (entries) => entries.map((entry) => ({ ...entry }));
 
 function createSchedules({ file, now = Date.now, log = () => {} } = {}) {
   let schedules = new Map();
   let saveTimer = null;
+  let dirty = false;
 
   if (file) {
     try {
       const stored = JSON.parse(fs.readFileSync(file, 'utf8'));
-      for (const [code, value] of Object.entries(stored || {})) {
+      if (!stored || typeof stored !== 'object' || Array.isArray(stored)) {
+        log('schedules invalid top-level value, starting empty');
+        schedules = new Map();
+      } else for (const [code, value] of Object.entries(stored)) {
+        if (!CODE_PATTERN.test(code)) {
+          log(`schedule code ${code} invalid, ignoring`);
+          continue;
+        }
         const parsed = parseScheduleEntries(value);
-        if (parsed.ok) schedules.set(code, parsed.value);
+        if (parsed.ok) schedules.set(code, copyEntries(parsed.value));
         else log(`schedule for ${code} invalid, ignoring`);
       }
     } catch (err) {
@@ -26,10 +37,11 @@ function createSchedules({ file, now = Date.now, log = () => {} } = {}) {
     const tmp = `${file}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries(schedules)));
     fs.renameSync(tmp, file);
+    dirty = false;
   }
 
   function saveSoon() {
-    if (!file || saveTimer) return;
+    if (!file || saveTimer || !dirty) return;
     saveTimer = setTimeout(() => {
       saveTimer = null;
       try {
@@ -52,30 +64,48 @@ function createSchedules({ file, now = Date.now, log = () => {} } = {}) {
       if (kept.length) schedules.set(code, kept);
       else schedules.delete(code);
     });
-    if (changed) saveSoon();
+    if (changed) {
+      dirty = true;
+      saveSoon();
+    }
     return changed;
   }
 
   function set(code, entries) {
-    if (entries.length) schedules.set(code, entries);
+    if (!CODE_PATTERN.test(code)) {
+      log(`schedule code ${code} invalid, ignoring`);
+      return false;
+    }
+    const parsed = parseScheduleEntries(entries);
+    if (!parsed.ok) {
+      log(`schedule for ${code} invalid, ignoring`);
+      return false;
+    }
+    const today = kstDate(now());
+    const kept = parsed.value.filter((entry) => entry.to >= today);
+    if (kept.length) schedules.set(code, copyEntries(kept));
     else schedules.delete(code);
-    prune();
+    dirty = true;
     saveSoon();
+    return true;
   }
 
   function flush() {
-    if (!saveTimer) return;
-    clearTimeout(saveTimer);
-    saveTimer = null;
-    if (file) write();
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    if (file && dirty) write();
   }
 
   return {
-    get: (code) => schedules.get(code) || [],
+    get: (code) => copyEntries(schedules.get(code) || []),
     set,
     visible: (code) => {
       const currentTime = now();
-      return (schedules.get(code) || []).filter((entry) => entry.to >= kstDate(currentTime));
+      return copyEntries((schedules.get(code) || [])
+        .filter((entry) => entry.to >= kstDate(currentTime))
+        .slice(0, 30));
     },
     prune,
     flush,

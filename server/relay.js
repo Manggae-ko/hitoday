@@ -361,7 +361,11 @@ function createRelay({
       games.stopAll();
       deviceKeys.flush();
       roomAges.flush();
-      schedules.flush();
+      try {
+        schedules.flush();
+      } catch (err) {
+        log(`schedules not flushed while closing: ${err.message}`);
+      }
       clearInterval(roomSweeper);
       clearInterval(scheduleTicker);
       stats.stop();

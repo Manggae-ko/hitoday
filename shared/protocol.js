@@ -1,5 +1,6 @@
 // Messages exchanged between apps and the relay server.
 // Shared by both sides so validation rules never drift apart.
+// KST = UTC+9 고정, DST 없음.
 //
 // A "room" works like a group chat: whoever has the invite code can join,
 // and everyone in the room sees everyone's character along the bottom of their screen.

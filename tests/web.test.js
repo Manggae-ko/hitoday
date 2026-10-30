@@ -49,11 +49,11 @@ test('downloads say "not ready" until a repo is configured', () =>
 
 test('serves the pixel characters used on the download page', () =>
   withRelay({}, async (base) => {
-    const res = await fetch(`${base}/sprites/mochi-2.png`);
+    const res = await fetch(`${base}/sprites/ghost-2.png`);
     assert.equal(res.status, 200);
     assert.equal(res.headers.get('content-type'), 'image/png');
     assert.equal((await fetch(`${base}/sprites/../package.json`)).status, 404);
-    assert.equal((await fetch(`${base}/sprites/mochi-99.png`)).status, 404);
+    assert.equal((await fetch(`${base}/sprites/ghost-99.png`)).status, 404);
   }));
 
 test('unknown paths and methods are rejected', () =>

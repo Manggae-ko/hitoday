@@ -31,7 +31,7 @@ function loadSprites() {
   const dir = path.join(__dirname, '..', 'web', 'sprites');
   const sprites = new Map();
   try {
-    fs.readdirSync(dir).filter((f) => /^mochi-\d{1,2}\.png$/.test(f))
+    fs.readdirSync(dir).filter((f) => /^ghost-\d{1,2}\.png$/.test(f))
       .forEach((f) => sprites.set(f, fs.readFileSync(path.join(dir, f))));
   } catch (err) {
     process.stderr.write(`download page sprites missing: ${err.message}\n`);
@@ -149,7 +149,7 @@ function createWebHandler({
         'referrer-policy': 'no-referrer', // keep ?token= out of any Referer header
       }, renderStatsPage(report));
     }
-    const spriteMatch = pathname.match(/^\/sprites\/(mochi-\d{1,2}\.png)$/);
+    const spriteMatch = pathname.match(/^\/sprites\/(ghost-\d{1,2}\.png)$/);
     if (spriteMatch && sprites.has(spriteMatch[1])) {
       return reply(200, { 'content-type': 'image/png', 'cache-control': 'public, max-age=86400' }, sprites.get(spriteMatch[1]));
     }

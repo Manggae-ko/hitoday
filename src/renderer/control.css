@@ -25,7 +25,7 @@ h1, .label, .tabs button, .btn, .arcade, .ticket-code, .status, .pick-name, .mem
 
 /* Hard pixel frame: four 3px shadows leave notched corners, like old game UI. */
 .frame,
-.ticket, .chat, .me-card, .btn, .arcade, input, .code-input {
+.ticket, .chat, .me-card, .btn, .arcade, input, select, .code-input {
   border: 0;
   box-shadow: 0 -3px 0 var(--line), 0 3px 0 var(--line), -3px 0 0 var(--line), 3px 0 0 var(--line);
 }
@@ -138,7 +138,8 @@ body { overflow-x: hidden; }
 .row { display: flex; align-items: center; gap: 8px; }
 .row input { flex: 1; }
 
-input {
+input,
+select {
   min-width: 0;
   margin: 3px;
   padding: 9px 10px;
@@ -147,7 +148,9 @@ input {
   background: var(--field);
   border-radius: 0;
 }
-input:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+input:focus-visible,
+select:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+input[type="date"], select { color-scheme: light dark; }
 .code-input { font-family: var(--font-pixel); font-size: var(--pixel-md); letter-spacing: 0.15em; text-transform: uppercase; }
 
 .link {
@@ -336,6 +339,93 @@ input:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .file-btn { position: relative; display: inline-block; }
 .file-btn input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
 .file-btn:focus-within { outline: 3px solid var(--accent-deep); outline-offset: 4px; }
+
+/* --- schedule ------------------------------------------------------------------ */
+
+/* 폼: 2열 grid(시작·종료 / 종류·메모 / 추가 전폭) */
+.sched-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
+.sched-form .field { display: grid; min-width: 0; }
+.sched-form .label { margin: 0 0 2px 3px; }
+.sched-add, .sched-full { grid-column: 1 / -1; }
+#panel-schedule .hint { margin: 0; font-size: var(--text-xs); color: var(--ink-soft); }
+
+.sched-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.sched-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 10px;
+  font-size: var(--text-sm);
+  background: var(--paper-raised);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+}
+.sched-item .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sched-empty { font-size: var(--text-sm); color: var(--ink-soft); }
+
+/* 표: 14열 고정, 가로 스크롤. 이름열 88px 고정(sticky), 날짜열 30px */
+.sched-scroll {
+  margin: 3px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  background: var(--paper-raised);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+}
+.sched-scroll:focus-visible { outline: 3px solid var(--accent-deep); outline-offset: 2px; }
+.sched-table { border-collapse: separate; border-spacing: 0; font-size: var(--text-xs); }
+.sched-table th,
+.sched-table td { padding: 0; text-align: center; border-bottom: 1px solid var(--ink-faint); }
+.sched-table thead th {
+  min-width: 30px;
+  padding: 4px 0;
+  font-family: var(--font-pixel);
+  font-size: var(--pixel-sm);
+  font-weight: 400;
+  line-height: 1.25;
+  -webkit-font-smoothing: none;
+}
+.sched-table .day-num,
+.sched-table .day-dow { display: block; }
+.sched-table .day-dow { color: var(--ink-soft); }
+.sched-table .corner,
+.sched-table tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  width: 88px;
+  min-width: 88px;
+  max-width: 88px;
+  text-align: left;
+  background: var(--paper-raised);
+}
+.sched-table tbody th .who { display: flex; align-items: center; gap: 2px; padding: 2px 4px 2px 0; }
+.sched-table tbody th .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.sched-table td { min-width: 30px; height: 36px; }
+.sched-table th.is-weekend,
+.sched-table td.is-weekend-cell { background: var(--paper-sunk); }
+.sched-table th[aria-current="date"],
+.sched-table td.is-today { box-shadow: inset 2px 0 0 var(--accent), inset -2px 0 0 var(--accent); }
+.sched-table th[aria-current="date"] { box-shadow: inset 2px 2px 0 var(--accent), inset -2px 0 0 var(--accent); font-weight: 700; }
+.sched-table .mark {
+  display: block;
+  margin: 0 2px;
+  padding: 2px 0;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  color: #2b2420;
+  background: var(--butter);
+  border-radius: 4px;
+}
+.sched-table [data-kind="leave"] .mark,
+.sched-table [data-kind="trip"] .mark { background: #ffd2bd; }
+.sched-table [data-kind="half-am"] .mark,
+.sched-table [data-kind="half-pm"] .mark { background: #d6ecff; }
+.sched-table [data-kind="out"] .mark,
+.sched-table [data-kind="remote"] .mark { background: #d4f2dc; }
 
 details { font-size: var(--text-sm); color: var(--ink-soft); }
 summary { margin-bottom: 8px; cursor: pointer; }

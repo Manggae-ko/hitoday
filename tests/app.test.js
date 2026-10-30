@@ -7,7 +7,7 @@ const path = require('node:path');
 const { loadProfile, applyChanges, withRoom } = require('../src/main/profile');
 const { createTransport, parseServerMessage } = require('../src/main/transport');
 const { createRelay } = require('../server/relay');
-const { buildScheduleView } = require('../src/main/schedule-view');
+const { buildScheduleView, nextScheduleKnown, scheduleRefusal } = require('../src/main/schedule-view');
 
 const base = { code: 'AAAAAA', name: '나', room: '', serverUrl: 'ws://localhost:8787' };
 const tmpDir = () => fs.mkdtempSync(path.join(os.tmpdir(), 'hitoday-'));
@@ -242,4 +242,39 @@ test('schedule view crosses month boundary', () => {
   assert.equal(days[13].date, '2026-11-12');
   assert.deepEqual(rows[0].cells.map((c) => c && c.short).slice(0, 4), [null, '연차', '연차', null]);
   assert.equal(buildScheduleView([], '2026-12-25').days[13].date, '2027-01-07');
+});
+
+// --- 일정: today 달력 검증·저장 거부·scheduleKnown 전이 ---
+
+test('parseRoom drops today that is not a real date', () => {
+  assert.equal(roomWith({}, { today: '2026-02-31' }).today, null);
+  assert.equal(roomWith({}, { today: '2026-13-01' }).today, null);
+  assert.equal(roomWith({}, { today: '2025-02-29' }).today, null);
+  assert.equal(roomWith({}, { today: '0050-01-01' }).today, null);
+  assert.equal(roomWith({}, { today: '2028-02-29' }).today, '2028-02-29');
+});
+
+test('set-schedule is refused while pending, offline, or before my schedule is known', () => {
+  const ready = { schedulePending: false, connected: true, scheduleKnown: true };
+  assert.equal(scheduleRefusal(ready), null);
+  assert.equal(scheduleRefusal({ ...ready, schedulePending: true }), 'pending');
+  assert.equal(scheduleRefusal({ ...ready, connected: false }), 'offline');
+  assert.equal(scheduleRefusal({ ...ready, connected: false, scheduleKnown: false }), 'offline');
+  assert.equal(scheduleRefusal({ ...ready, scheduleKnown: false }), 'unknown');
+});
+
+test('scheduleKnown turns true only after a room snapshot with me in it', () => {
+  const me = 'AAAAAA';
+  const room = (codes) => ({ type: 'room', members: codes.map((code) => ({ code })) });
+  let known = false;
+  known = nextScheduleKnown(known, { type: 'status' }, me); // welcome
+  assert.equal(known, false);
+  known = nextScheduleKnown(known, room(['BBBBBB']), me);
+  assert.equal(known, false);
+  known = nextScheduleKnown(known, room(['BBBBBB', me]), me);
+  assert.equal(known, true);
+  assert.equal(nextScheduleKnown(known, { type: 'said' }, me), true);
+  assert.equal(nextScheduleKnown(known, { type: 'left-room' }, me), false);
+  assert.equal(nextScheduleKnown(known, { type: 'status' }, me), false); // 재접속 직후
+  assert.equal(nextScheduleKnown(known, { type: 'new-identity' }, me), false);
 });

@@ -17,7 +17,9 @@ const {
   cleanText, normalizeCode, isCode, spotOrNull, MAX_MESSAGE_LENGTH, ROOM_HISTORY, GAMES, RPS_HANDS,
   STATUS_KINDS, STATUS_LABELS, SCHEDULE_WINDOW_DAYS, kstDate, parseScheduleEntries,
 } = require('../../shared/protocol');
-const { buildScheduleView, dateAfter } = require('./schedule-view');
+const {
+  buildScheduleView, dateAfter, nextScheduleKnown, scheduleRefusal,
+} = require('./schedule-view');
 const { describeGame } = require('./game-text');
 const { checkAvatar } = require('../../shared/avatar');
 const { colorFor } = require('../../shared/colors');
@@ -71,6 +73,7 @@ const state = {
   game: null,
   ownAvatar: null,
   mySchedule: [],
+  scheduleKnown: false, // room snapshot 으로 서버의 내 일정을 받았는지
   schedulePending: false,
   scheduleMessage: null,
 };
@@ -133,6 +136,7 @@ function publicState() {
     scheduleLastDay: dateAfter(todayKst(), SCHEDULE_WINDOW_DAYS - 1), // 입력 상한 today+59
     statusKinds: STATUS_KIND_LIST,
     schedule: state.mySchedule,
+    scheduleKnown: state.scheduleKnown,
     scheduleView: room ? buildScheduleView(room.members, todayKst()) : null,
     schedulePending: state.schedulePending,
     scheduleMessage: state.scheduleMessage,
@@ -180,7 +184,10 @@ function handleServerMessage(msg) {
     const me = msg.members.find((m) => m.code === state.profile.code);
     const mySchedule = me && !state.schedulePending ? me.schedule : state.mySchedule;
     pushState({
-      room: { code: msg.room, members: msg.members, today: msg.today }, chat: msg.history.map(toChatLine), mySchedule,
+      room: { code: msg.room, members: msg.members, today: msg.today },
+      chat: msg.history.map(toChatLine),
+      mySchedule,
+      scheduleKnown: nextScheduleKnown(state.scheduleKnown, msg, state.profile.code),
     });
     showMembers();
   } else if (msg.type === 'schedule-saved') {
@@ -190,7 +197,7 @@ function handleServerMessage(msg) {
     pushState({ chat: [...state.chat, toChatLine(msg)].slice(-ROOM_HISTORY), notice: '' });
   } else if (msg.type === 'left-room') {
     rememberRoom('');
-    pushState({ room: null, chat: [] });
+    pushState({ room: null, chat: [], scheduleKnown: nextScheduleKnown(state.scheduleKnown, msg, state.profile.code) });
     showMembers();
   } else if (msg.type === 'moved') {
     if (!state.room) return;
@@ -205,6 +212,7 @@ function handleServerMessage(msg) {
     state.profile = withNewIdentity(state.profile);
     saveProfile(app.getPath('userData'), state.profile);
     if (state.schedulePending) failSchedule(msg.reason);
+    state.scheduleKnown = nextScheduleKnown(state.scheduleKnown, { type: 'new-identity' }, state.profile.code);
     pushState({ room: null, chat: [], notice: '다른 기기에서 쓰던 코드라 새 코드를 만들었어요. 방에 다시 들어가 주세요.' });
     transport.connect(state.profile.serverUrl);
   } else if (msg.type === 'error' && state.schedulePending) {
@@ -328,7 +336,9 @@ function registerIpc() {
   });
   // 일정 전량 교체: renderer 입력을 여기서 다시 검증(서버도 한 번 더 검증)
   ipcMain.handle('control:set-schedule', (_e, entries) => {
-    if (state.schedulePending) return { ok: false, reason: 'pending' };
+    // 대기 중·welcome 전(held 소켓 포함)·내 서버 일정 미확인이면 보내지 않음
+    const refusal = scheduleRefusal(state);
+    if (refusal) return { ok: false, reason: refusal };
     const parsed = parseScheduleEntries(entries);
     if (!parsed.ok) return { ok: false, reason: 'bad-schedule' };
     if (!transport.send({ type: 'set-schedule', entries: parsed.value })) return { ok: false, reason: 'offline' };
@@ -399,10 +409,15 @@ app.whenReady().then(() => {
     onStatus: ({ connected, replaced }) => {
       if (replaced) {
         if (state.schedulePending) failSchedule('offline');
-        pushState({ connected: false, notice: '다른 곳에서 같은 오늘뭐해?가 켜져서 여기는 연결을 멈췄어요. 이 기기에서 쓰려면 앱을 다시 켜 주세요.' });
+        pushState({
+          connected: false,
+          scheduleKnown: nextScheduleKnown(state.scheduleKnown, { type: 'status' }, state.profile.code),
+          notice: '다른 곳에서 같은 오늘뭐해?가 켜져서 여기는 연결을 멈췄어요. 이 기기에서 쓰려면 앱을 다시 켜 주세요.',
+        });
         return;
       }
-      pushState({ connected });
+      // 접속·끊김 모두 다음 room snapshot 전까지 내 일정 미확인
+      pushState({ connected, scheduleKnown: nextScheduleKnown(state.scheduleKnown, { type: 'status' }, state.profile.code) });
       // 연결이 끊기면 저장 응답이 올 수 없으니 대기를 풂
       if (!connected && state.schedulePending) failSchedule('offline');
       // The server keeps images in memory only, so re-send mine on every (re)connect.

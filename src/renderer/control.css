@@ -417,16 +417,29 @@ input[type="date"], select { color-scheme: light dark; }
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
-  color: #2b2420;
+  color: var(--ink);
   background: var(--butter);
   border-radius: 4px;
 }
+/* kind 별 칸 배경: 다크 모드에선 어두운 배경 + 밝은 --ink (대비 ≥ 7:1) */
+.sched-table {
+  --mark-rest: #ffd2bd;
+  --mark-half: #d6ecff;
+  --mark-away: #d4f2dc;
+}
+@media (prefers-color-scheme: dark) {
+  .sched-table {
+    --mark-rest: #6b3420;
+    --mark-half: #1f4466;
+    --mark-away: var(--mint);
+  }
+}
 .sched-table [data-kind="leave"] .mark,
-.sched-table [data-kind="trip"] .mark { background: #ffd2bd; }
+.sched-table [data-kind="trip"] .mark { background: var(--mark-rest); }
 .sched-table [data-kind="half-am"] .mark,
-.sched-table [data-kind="half-pm"] .mark { background: #d6ecff; }
+.sched-table [data-kind="half-pm"] .mark { background: var(--mark-half); }
 .sched-table [data-kind="out"] .mark,
-.sched-table [data-kind="remote"] .mark { background: #d4f2dc; }
+.sched-table [data-kind="remote"] .mark { background: var(--mark-away); }
 
 details { font-size: var(--text-sm); color: var(--ink-soft); }
 summary { margin-bottom: 8px; cursor: pointer; }

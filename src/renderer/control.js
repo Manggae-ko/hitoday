@@ -12,7 +12,10 @@ const SCHEDULE_REFUSED = {
   pending: '저장 중이에요. 잠시만 기다려 주세요.',
   'bad-schedule': '날짜와 메모를 확인해 주세요.',
   offline: '서버에 연결되어 있지 않아요.',
+  unknown: '방에 들어가면 일정을 편집할 수 있어요',
 };
+// main 의 저장 확정 문구(schedule-saved 반영)와 같아야 함
+const SCHEDULE_SAVED = '저장했어요';
 
 const el = {
   status: $('status'),
@@ -66,6 +69,8 @@ let shownPicker = '';
 let shownSchedule = '';
 let shownKinds = '';
 let focusAfterDelete = null; // 삭제 후 포커스를 옮길 목록 위치
+// 추가 제출 때의 입력값: 저장 확정 후 입력이 그대로면 폼을 비움. seenPending = main 이 대기에 들어간 걸 봤는지
+let submitted = null;
 
 // --- small builders -------------------------------------------------------------
 
@@ -235,7 +240,7 @@ function fillKinds(kinds) {
   el.schedNote.required = el.schedKind.value === 'note';
 }
 
-function renderScheduleList(schedule, kinds, pending) {
+function renderScheduleList(schedule, kinds, locked) {
   if (schedule.length === 0) {
     el.schedList.replaceChildren(node('li', 'sched-empty', '아직 일정이 없어요.'));
     return;
@@ -245,7 +250,7 @@ function renderScheduleList(schedule, kinds, pending) {
     const li = node('li', 'sched-item');
     const remove = node('button', 'btn btn-small', '삭제');
     remove.type = 'button';
-    remove.disabled = pending;
+    remove.disabled = locked;
     remove.setAttribute('aria-label', `${text} 삭제`);
     remove.addEventListener('click', () => removeEntry(index));
     li.append(node('span', 'what', text), remove);
@@ -296,24 +301,52 @@ function renderScheduleTable(view, members) {
   }));
 }
 
+const formValues = () => [el.schedFrom.value, el.schedTo.value, el.schedKind.value, el.schedNote.value];
+
+// 저장이 확정(대기 해제 + '저장했어요')되고 입력이 제출 때 그대로일 때만 폼을 비움
+function settleSubmitted(state) {
+  if (!submitted) return;
+  if (state.schedulePending) {
+    submitted.seenPending = true;
+    return;
+  }
+  if (!submitted.seenPending) return;
+  const same = JSON.stringify(formValues()) === JSON.stringify(submitted.values);
+  if (same && state.scheduleMessage === SCHEDULE_SAVED) {
+    el.schedTo.value = '';
+    el.schedNote.value = '';
+  }
+  submitted = null;
+}
+
+// 표 썸네일이 바뀌는 멤버 필드(캐릭터·색·업로드 그림)
+const memberLooks = (room) => (room ? room.members.map((m) => [m.code, m.character, m.color, m.look ? m.look.url.length : 0]) : []);
+
 function renderSchedule(state) {
-  const key = JSON.stringify([state.schedule, state.scheduleView, state.schedulePending, state.scheduleMessage, state.today]);
+  settleSubmitted(state);
+  const key = JSON.stringify([
+    state.schedule, state.scheduleView, state.schedulePending, state.scheduleMessage, state.today,
+    state.scheduleLastDay, state.scheduleKnown, memberLooks(state.room),
+  ]);
   if (key === shownSchedule) return;
   shownSchedule = key;
   const schedule = state.schedule || [];
   const kinds = state.statusKinds || [];
   const pending = Boolean(state.schedulePending);
+  const locked = pending || !state.scheduleKnown; // 서버의 내 일정을 모르면 전량 교체 금지
   fillKinds(kinds);
   // 입력값은 덮어쓰지 않고 범위만 갱신
   el.schedFrom.min = state.today || '';
   el.schedFrom.max = state.scheduleLastDay || '';
   if (!el.schedFrom.value) el.schedFrom.value = state.today || '';
   el.schedTo.min = el.schedFrom.value || state.today || '';
+  el.schedTo.max = state.scheduleLastDay || '';
   const full = schedule.length >= MAX_SCHEDULE;
-  el.schedAdd.disabled = pending || full;
+  el.schedAdd.disabled = locked || full;
   el.schedFull.hidden = !full;
-  el.schedMsg.textContent = pending ? '저장 중…' : state.scheduleMessage || '';
-  renderScheduleList(schedule, kinds, pending);
+  const message = state.scheduleKnown ? state.scheduleMessage : SCHEDULE_REFUSED.unknown;
+  el.schedMsg.textContent = pending ? '저장 중…' : message || '';
+  renderScheduleList(schedule, kinds, locked);
   renderScheduleTable(state.scheduleView, state.room ? state.room.members : []);
   if (focusAfterDelete !== null && !pending) {
     const next = el.schedList.children[focusAfterDelete];
@@ -425,10 +458,10 @@ el.schedForm.addEventListener('submit', async (event) => {
   const from = el.schedFrom.value;
   const note = el.schedNote.value.trim();
   const entry = { from, to: el.schedTo.value || from, kind: el.schedKind.value, ...(note ? { note } : {}) };
+  // IPC 응답보다 대기 상태가 먼저 올 수 있어 보내기 전에 보관
+  submitted = { values: formValues(), seenPending: false };
   const result = await saveSchedule([...latest.schedule, entry]);
-  if (!result.ok) return;
-  el.schedTo.value = '';
-  el.schedNote.value = '';
+  if (!result.ok) submitted = null;
 });
 
 el.avatarReset.addEventListener('click', () => run(api.clearAvatar));

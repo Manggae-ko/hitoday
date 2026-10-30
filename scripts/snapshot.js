@@ -91,6 +91,7 @@ const scheduleState = {
   scheduleLastDay: dateAfter(TODAY, SCHEDULE_WINDOW_DAYS - 1),
   statusKinds: STATUS_KINDS.map((kind) => ({ kind, label: STATUS_LABELS[kind] })),
   schedule: members.find((m) => m.code === ME).schedule,
+  scheduleKnown: true,
   scheduleView: buildScheduleView(members, TODAY),
   schedulePending: false,
   scheduleMessage: '저장했어요',
@@ -179,9 +180,14 @@ app.whenReady().then(async () => {
   const mouse = (type, x, held) => overlay.webContents.sendInputEvent({
     type, x, y: 370, button: 'left', clickCount: 1, modifiers: held ? ['leftButtonDown'] : [],
   });
-  mouse('mouseMove', 1110, false);
-  mouse('mouseDown', 1110, true);
-  for (let x = 1100; x >= 640; x -= 40) {
+  // 누르는 곳은 내 캐릭터 실제 위치의 가운데(고정 좌표는 캐릭터 폭이 바뀌면 빗나감)
+  const startX = await overlay.webContents.executeJavaScript(`(() => {
+    const box = document.querySelector('.char.is-me').getBoundingClientRect();
+    return Math.round(box.left + box.width / 2);
+  })()`);
+  mouse('mouseMove', startX, false);
+  mouse('mouseDown', startX, true);
+  for (let x = startX - 10; x >= 640; x -= 40) {
     mouse('mouseMove', x, true);
     await wait(60);
   }

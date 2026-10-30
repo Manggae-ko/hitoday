@@ -1,4 +1,5 @@
 // 방 일정표 계산: 오늘부터 14일 × 멤버. renderer 는 이 결과를 그리기만 한다.
+// 일정 편집 가능 여부(scheduleKnown 전이·저장 거부 사유)도 여기서 판단.
 // electron 을 require 하지 않는 순수 모듈(app.test·snapshot 공용).
 
 const { STATUS_LABELS, STATUS_PRIORITY } = require('../../shared/protocol');
@@ -48,4 +49,24 @@ function buildScheduleView(members, today) {
   return { days, rows };
 }
 
-module.exports = { buildScheduleView, dateAfter, VIEW_DAYS };
+/**
+ * 서버의 내 일정을 아는지(scheduleKnown) 다음 값. 모르는 채 전량 교체하면 서버 일정이 지워짐.
+ * event: { type: 'room', members } | { type: 'left-room' } | { type: 'status' }(접속·끊김) | { type: 'new-identity' }
+ */
+function nextScheduleKnown(known, event, myCode) {
+  if (event.type === 'room') return event.members.some((m) => m.code === myCode);
+  if (['left-room', 'status', 'new-identity'].includes(event.type)) return false; // 다음 room snapshot 까지 미확인
+  return known;
+}
+
+/** 일정 저장을 지금 보낼 수 없는 사유('pending'|'offline'|'unknown'), 보낼 수 있으면 null */
+function scheduleRefusal({ schedulePending, connected, scheduleKnown }) {
+  if (schedulePending) return 'pending';
+  if (!connected) return 'offline';
+  if (!scheduleKnown) return 'unknown';
+  return null;
+}
+
+module.exports = {
+  buildScheduleView, dateAfter, nextScheduleKnown, scheduleRefusal, VIEW_DAYS,
+};

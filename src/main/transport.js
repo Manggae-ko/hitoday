@@ -50,12 +50,18 @@ function parseMember(data) {
   };
 }
 
+// 'YYYY-MM-DD' 이면서 실제 달력에 있는 날짜일 때만(2026-02-31 같은 값은 null)
+function parseToday(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).toISOString().slice(0, 10) === value ? value : null;
+}
+
 function parseRoom(data) {
   if (!isCode(data.room) || !Array.isArray(data.members)) return null;
   const members = data.members.slice(0, MAX_ROOM_MEMBERS).map(parseMember).filter(Boolean);
   const history = (Array.isArray(data.history) ? data.history : []).slice(-ROOM_HISTORY).map(parseLine).filter(Boolean);
-  const today = typeof data.today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.today) ? data.today : null;
-  return { type: 'room', room: data.room, members, history, today };
+  return { type: 'room', room: data.room, members, history, today: parseToday(data.today) };
 }
 
 const PHASES = ['pick', 'ready', 'go', 'result'];

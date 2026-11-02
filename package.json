@@ -1,13 +1,13 @@
 {
   "name": "hitoday",
-  "version": "0.1.6",
+  "version": "0.1.0",
   "description": "오늘뭐해?: 친구들 캐릭터가 서로의 바탕화면 아래에 모여 사는 앱",
   "main": "src/main/main.js",
   "private": true,
   "scripts": {
     "start": "electron .",
     "server": "node server/relay.js",
-    "test": "node --test --test-timeout=20000 tests/*.test.js",
+    "test": "node --test --test-force-exit --test-concurrency=1 --test-timeout=20000 tests/*.test.js",
     "demo:a": "HITODAY_PROFILE=a HITODAY_REGION=left electron .",
     "demo:b": "HITODAY_PROFILE=b HITODAY_REGION=right electron .",
     "icons": "node scripts/make-icons.js",

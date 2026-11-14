@@ -9,3 +9,17 @@
 		format console
 	}
 }
+
+# 운동 기록 앱(github.com/Manggae-ko/workout-tracker)이 이 서버의 80/443 을 함께 쓴다.
+# 그쪽은 Docker 가 아니라 호스트에서 systemd 로 도는 uvicorn 이라, 컨테이너에서
+# 호스트를 부르는 주소(이 서버의 VPC 사설 IP)로 넘긴다. 공인 IP 가 아니므로
+# 바깥에서 5252 로 직접 들어올 수는 없다.
+workoutms.duckdns.org {
+	encode zstd gzip
+	reverse_proxy 10.0.1.6:5252
+	header Strict-Transport-Security "max-age=31536000"
+	log {
+		output stdout
+		format console
+	}
+}

@@ -3,6 +3,8 @@
 const path = require('node:path');
 const { BrowserWindow, screen } = require('electron');
 
+const { keepOnTop } = require('./keep-on-top');
+
 const RENDERER_DIR = path.join(__dirname, '..', 'renderer');
 
 function lockDown(win) {
@@ -42,6 +44,8 @@ function createOverlayWindow() {
     webPreferences: secureWebPreferences('preload-overlay.js'),
   });
   win.setAlwaysOnTop(true, 'floating');
+  // Windows에선 다른 프로그램이 "항상 위"를 풀어 캐릭터가 창들 아래로 깔리는 PC가 있어 주기적으로 다시 건다
+  if (process.platform === 'win32') keepOnTop(win, { level: 'floating' });
   win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   // Clicks pass through to the desktop except where a character is (see overlay.js).
   win.setIgnoreMouseEvents(true, { forward: true });
